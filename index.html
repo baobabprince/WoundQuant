@@ -6,36 +6,312 @@
     <title>WoundQuant JS — ML & Examples</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg-color: #f8f9fa; --panel-bg: #ffffff; --primary: #2563eb; --accent: #059669; }
-        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg-color); margin: 0; padding: 20px; color: #1e293b; }
-        .container { display: grid; grid-template-columns: 340px 1fr; gap: 20px; max-width: 1600px; margin: 0 auto; }
-        .panel { background: var(--panel-bg); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        h1 { margin-top: 0; font-size: 1.5rem; color: #0f172a; }
-        .control-group { margin-bottom: 15px; }
-        label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 5px; }
-        select, input[type="file"] { width: 100%; box-sizing: border-box; }
-        .btn { background: var(--primary); color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600; font-size: 0.95rem; margin-bottom: 10px; }
-        .btn:hover { opacity: 0.9; }
-        .btn-examples { background: var(--accent); }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .canvas-container { display: flex; flex-direction: column; align-items: center; background: #000; border-radius: 8px; padding: 10px; }
-        canvas { max-width: 100%; height: auto; border-radius: 4px; }
-        .metrics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
-        .metric-card { background: #f1f5f9; padding: 12px; border-radius: 8px; text-align: center; }
-        .metric-val { font-size: 1.2rem; font-weight: bold; color: var(--primary); }
-        .chart-box { position: relative; height: 280px; margin-bottom: 20px; }
-        .status-badge { font-size: 0.85rem; padding: 4px 8px; border-radius: 4px; background: #e2e8f0; display: inline-block; margin-top: 5px; }
+        :root {
+            --bg-color: #f1f5f9;
+            --panel-bg: #ffffff;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --accent: #059669;
+            --accent-hover: #047857;
+            --border-color: #cbd5e1;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-main);
+            line-height: 1.4;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1600px;
+            margin: 0 auto 20px auto;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.6rem;
+            color: var(--text-main);
+            font-weight: 800;
+        }
+
+        .lang-btn {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            min-height: 40px;
+        }
+
+        .lang-btn:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+            box-sizing: border-box;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+
+        select, input[type="file"] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-size: 0.95rem;
+            background-color: #fff;
+            min-height: 44px; /* Touch friendly */
+            color: var(--text-main);
+        }
+
+        select:focus, input[type="file"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+        }
+
+        /* Slider Styling */
+        .slider-container {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin-top: 5px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 8px 0;
+            cursor: pointer;
+        }
+
+        .slider-val-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+            transition: background 0.2s;
+            min-height: 44px; /* Touch friendly */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-examples {
+            background: var(--accent);
+        }
+
+        .btn-examples:hover {
+            background: var(--accent-hover);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .canvas-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid #1e293b;
+            box-sizing: border-box;
+            width: 100%;
+            justify-content: center;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            display: block;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+        }
+
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .metric-card {
+            background: #f8fafc;
+            padding: 16px 12px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        .metric-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .metric-val {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .chart-box {
+            position: relative;
+            height: 280px;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.05rem;
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        .status-badge {
+            font-size: 0.85rem;
+            padding: 6px 12px;
+            border-radius: 6px;
+            background: #e2e8f0;
+            display: inline-block;
+            margin-top: 8px;
+            font-weight: 600;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* Media Queries for Mobile Responsiveness */
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            .chart-box {
+                height: 240px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 12px;
+            }
+            h1 {
+                font-size: 1.3rem;
+            }
+            .header-section {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            .lang-btn {
+                align-self: flex-start;
+            }
+            .metrics-row {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            .metric-card {
+                padding: 12px;
+            }
+            .metric-val {
+                font-size: 1.15rem;
+            }
+        }
     </style>
 </head>
 <body>
 
-<h1>🔬 WoundQuant JS — ניתוח כוויה בלמידת מכונה (ML & Examples)</h1>
+<div class="header-section">
+    <h1 id="pageTitle">🔬 WoundQuant JS — ניתוח כוויה בלמידת מכונה (ML & Examples)</h1>
+    <button class="lang-btn" id="langToggle" onclick="toggleLanguage()">🌐 English</button>
+</div>
 
 <div class="container">
     <!-- Sidebar Controls -->
     <div class="panel">
         <div class="control-group">
-            <label>📁 העלאת תמונות או קבצי דוגמה</label>
+            <label id="labelUpload">📁 העלאת תמונות או קבצי דוגמה</label>
             <button class="btn btn-examples" id="btnLoadExamples">📂 טען קבצים מתיקיית examples</button>
             <input type="file" id="fileInput" multiple accept="image/*">
             <div class="status-badge" id="statusBadge">ממתין לקבצים...</div>
@@ -43,14 +319,29 @@
 
         <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
 
-        <h3>🤖 מצב ניתוח AI / ML</h3>
+        <h3 id="aiTitle">🤖 מצב ניתוח AI / ML</h3>
         
         <div class="control-group">
-            <label>שיטת סגמנטציה:</label>
-            <select id="methodSelect">
+            <label id="labelMethod">שיטת סגמנטציה:</label>
+            <select id="methodSelect" onchange="toggleManualSlider()">
                 <option value="kmeans">k-Means Clustering (אוטומטי)</option>
-                <option value="entropy">Entropy Threshold (קלאסי)</option>
+                <option value="otsu">סף Otsu (אוטומטי)</option>
+                <option value="adaptive">סף אדפטיבי (Bradley-Roth)</option>
+                <option value="manual">סף בהירות ידני</option>
             </select>
+        </div>
+
+        <!-- Slider for Manual Threshold -->
+        <div id="manualThreshGroup" class="control-group" style="display: none;">
+            <label id="labelSlider">סף ידני (ערך):</label>
+            <div class="slider-container">
+                <input type="range" id="manualThresholdSlider" min="0" max="255" value="100" oninput="updateSliderVal(this.value)">
+                <div class="slider-val-display">
+                    <span>0</span>
+                    <span id="sliderValDisplay">100</span>
+                    <span>255</span>
+                </div>
+            </div>
         </div>
 
         <button class="btn" id="btnProcess">🚀 הרץ ניתוח אצווה</button>
@@ -60,11 +351,11 @@
     <div class="panel">
         <div class="control-group grid-2">
             <div>
-                <label>סדרה נבחרת (Well / Site):</label>
+                <label id="labelSeries">סדרה נבחרת (Well / Site):</label>
                 <select id="selectSeries"></select>
             </div>
             <div>
-                <label>נקודת זמן לבדיקה (שעות):</label>
+                <label id="labelTime">נקודת זמן לבדיקה (שעות):</label>
                 <select id="selectTime"></select>
             </div>
         </div>
@@ -77,15 +368,15 @@
             <div>
                 <div class="metrics-row">
                     <div class="metric-card">
-                        <div>שטח כוויה</div>
+                        <div id="titleArea" class="metric-title">שטח כוויה</div>
                         <div class="metric-val" id="metricArea">0 px</div>
                     </div>
                     <div class="metric-card">
-                        <div>סגירה מצטברת</div>
+                        <div id="titleClosure" class="metric-title">סגירה מצטברת</div>
                         <div class="metric-val" id="metricClosure">0%</div>
                     </div>
                     <div class="metric-card">
-                        <div>קצב סגירה</div>
+                        <div id="titleRate" class="metric-title">קצב סגירה</div>
                         <div class="metric-val" id="metricRate">0 %/h</div>
                     </div>
                 </div>
@@ -97,11 +388,11 @@
         <!-- Charts -->
         <div class="grid-2">
             <div>
-                <h4>📈 אחוז סגירת הכוויה לאורך זמן</h4>
+                <h4 id="titleChartClosure">📈 אחוז סגירת הכוויה לאורך זמן</h4>
                 <div class="chart-box"><canvas id="chartClosure"></canvas></div>
             </div>
             <div>
-                <h4>⚡ קצב סגירה רגעי (%/h)</h4>
+                <h4 id="titleChartRate">⚡ קצב סגירה רגעי (%/h)</h4>
                 <div class="chart-box"><canvas id="chartRate"></canvas></div>
             </div>
         </div>
@@ -113,8 +404,66 @@ let filesMap = new Map();
 let processedResults = {};
 let chartClosureInst = null;
 let chartRateInst = null;
+let currentLang = "he";
 
 const FILENAME_REGEX = /_(?<well>[A-H]\d{1,2})_(?<site>\d+)_(?<days>\d{2})d(?<hours>\d{2})h(?<mins>\d{2})m/;
+
+const i18n = {
+    he: {
+        title: "🔬 WoundQuant JS — ניתוח כוויה בלמידת מכונה (ML & Examples)",
+        uploadLabel: "📁 העלאת תמונות או קבצי דוגמה",
+        loadExamples: "📂 טען קבצים מתיקיית examples",
+        waitingFiles: "ממתין לקבצים...",
+        aiTitle: "🤖 מצב ניתוח AI / ML",
+        methodLabel: "שיטת סגמנטציה:",
+        runBatch: "🚀 הרץ ניתוח אצווה",
+        seriesLabel: "סדרה נבחרת (Well / Site):",
+        timeLabel: "נקודת זמן לבדיקה (שעות):",
+        metricArea: "שטח כוויה",
+        metricClosure: "סגירה מצטברת",
+        metricRate: "קצב סגירה",
+        chartClosureTitle: "📈 אחוז סגירת הכוויה לאורך זמן",
+        chartRateTitle: "⚡ קצב סגירה רגעי (%/h)",
+        kmeans: "k-Means Clustering (אוטומטי)",
+        otsu: "סף Otsu (אוטומטי)",
+        adaptive: "סף אדפטיבי (Bradley-Roth)",
+        manual: "סף בהירות ידני",
+        sliderLabel: "סף ידני (ערך):",
+        loadingExamples: "טוען קבצים מ-examples...",
+        loadedExamples: (count) => `נטענו ${count} קבצי דוגמה!`,
+        noExamples: "לא נמצאו קבצים ב-examples/",
+        loadedManual: (count) => `נטענו ${count} קבצים!`,
+        processing: "מעבד...",
+        done: "העיבוד הושלם!"
+    },
+    en: {
+        title: "🔬 WoundQuant JS — Burn Wound Analysis (ML & Examples)",
+        uploadLabel: "📁 Upload Images or Example Files",
+        loadExamples: "📂 Load Files from examples folder",
+        waitingFiles: "Waiting for files...",
+        aiTitle: "🤖 AI / ML Analysis Mode",
+        methodLabel: "Segmentation Method:",
+        runBatch: "🚀 Run Batch Analysis",
+        seriesLabel: "Selected Series (Well / Site):",
+        timeLabel: "Inspection Timepoint (Hours):",
+        metricArea: "Burn Area",
+        metricClosure: "Wound Closure",
+        metricRate: "Closure Rate",
+        chartClosureTitle: "📈 Wound Closure % Over Time",
+        chartRateTitle: "⚡ Momentary Closure Rate (%/h)",
+        kmeans: "k-Means Clustering (Auto)",
+        otsu: "Otsu's Threshold (Auto)",
+        adaptive: "Adaptive Threshold (Bradley-Roth)",
+        manual: "Manual Intensity Threshold",
+        sliderLabel: "Manual Threshold (Value):",
+        loadingExamples: "Loading files from examples...",
+        loadedExamples: (count) => `Loaded ${count} example files!`,
+        noExamples: "No files found in examples/",
+        loadedManual: (count) => `Loaded ${count} files!`,
+        processing: "Processing...",
+        done: "Processing complete!"
+    }
+};
 
 const statusBadge = document.getElementById('statusBadge');
 const selectSeries = document.getElementById('selectSeries');
@@ -122,15 +471,99 @@ const selectTime = document.getElementById('selectTime');
 const mainCanvas = document.getElementById('mainCanvas');
 const ctx = mainCanvas.getContext('2d');
 
+function toggleLanguage() {
+    currentLang = currentLang === 'he' ? 'en' : 'he';
+    updateLanguage();
+}
+
+function updateLanguage() {
+    const dict = i18n[currentLang];
+
+    document.documentElement.lang = currentLang;
+    document.documentElement.dir = currentLang === 'he' ? 'rtl' : 'ltr';
+
+    document.getElementById('pageTitle').innerText = dict.title;
+    document.getElementById('labelUpload').innerText = dict.uploadLabel;
+    document.getElementById('btnLoadExamples').innerText = dict.loadExamples;
+
+    if (statusBadge.innerText === i18n.he.waitingFiles || statusBadge.innerText === i18n.en.waitingFiles) {
+        statusBadge.innerText = dict.waitingFiles;
+    } else if (statusBadge.innerText.startsWith('נטענו') || statusBadge.innerText.startsWith('Loaded')) {
+        let count = 0;
+        filesMap.forEach(arr => count += arr.length);
+        statusBadge.innerText = dict.loadedExamples(count);
+    } else if (statusBadge.innerText === i18n.he.loadingExamples || statusBadge.innerText === i18n.en.loadingExamples) {
+        statusBadge.innerText = dict.loadingExamples;
+    } else if (statusBadge.innerText === i18n.he.noExamples || statusBadge.innerText === i18n.en.noExamples) {
+        statusBadge.innerText = dict.noExamples;
+    } else if (statusBadge.innerText === i18n.he.processing || statusBadge.innerText === i18n.en.processing) {
+        statusBadge.innerText = dict.processing;
+    } else if (statusBadge.innerText === i18n.he.done || statusBadge.innerText === i18n.en.done) {
+        statusBadge.innerText = dict.done;
+    }
+
+    document.getElementById('aiTitle').innerText = dict.aiTitle;
+    document.getElementById('labelMethod').innerText = dict.methodLabel;
+    document.getElementById('btnProcess').innerText = dict.runBatch;
+    document.getElementById('labelSeries').innerText = dict.seriesLabel;
+    document.getElementById('labelTime').innerText = dict.timeLabel;
+
+    document.getElementById('titleArea').innerText = dict.metricArea;
+    document.getElementById('titleClosure').innerText = dict.metricClosure;
+    document.getElementById('titleRate').innerText = dict.metricRate;
+
+    document.getElementById('titleChartClosure').innerText = dict.chartClosureTitle;
+    document.getElementById('titleChartRate').innerText = dict.chartRateTitle;
+
+    const methodSelect = document.getElementById('methodSelect');
+    methodSelect.options[0].text = dict.kmeans;
+    methodSelect.options[1].text = dict.otsu;
+    methodSelect.options[2].text = dict.adaptive;
+    methodSelect.options[3].text = dict.manual;
+
+    document.getElementById('labelSlider').innerText = dict.sliderLabel;
+    document.getElementById('langToggle').innerText = currentLang === 'he' ? '🌐 English' : '🌐 עברית';
+
+    if (chartClosureInst || chartRateInst) {
+        renderCharts();
+    }
+    renderPreview();
+}
+
+function toggleManualSlider() {
+    const method = document.getElementById('methodSelect').value;
+    const group = document.getElementById('manualThreshGroup');
+    if (method === 'manual') {
+        group.style.display = 'block';
+    } else {
+        group.style.display = 'none';
+    }
+    renderPreview();
+}
+
+function updateSliderVal(val) {
+    document.getElementById('sliderValDisplay').innerText = val;
+    renderPreview();
+}
+
 // --- 1. Auto-Load Files from `examples/` Folder ---
 document.getElementById('btnLoadExamples').addEventListener('click', async () => {
-    statusBadge.innerText = 'טוען קבצים מ-examples...';
+    const dict = i18n[currentLang];
+    statusBadge.innerText = dict.loadingExamples;
     
-    // רשימת שמות קבצי דוגמה נפוצים או טעינה דינמית
     const exampleFilenames = [
-        "Experiment_B8_1_00d00h00m.tif",
-        "Experiment_B8_1_00d12h00m.tif",
-        "Experiment_B8_1_01d00h00m.tif"
+        "EXP3 plate1 after burn_B1_1_00d00h00m.jpg",
+        "EXP3 plate1 after burn_B1_1_03d00h00m.jpg",
+        "EXP3 plate1 after burn_B1_1_06d12h00m.jpg",
+        "EXP3 plate1 after burn_B1_1_09d12h00m.jpg",
+        "EXP3 plate1 after burn_B8_1_00d00h00m.jpg",
+        "EXP3 plate1 after burn_B8_1_03d00h00m.jpg",
+        "EXP3 plate1 after burn_B8_1_06d12h00m.jpg",
+        "EXP3 plate1 after burn_B8_1_09d12h00m.jpg",
+        "EXP3 plate1 after burn_C6_1_00d00h00m.jpg",
+        "EXP3 plate1 after burn_C6_1_03d00h00m.jpg",
+        "EXP3 plate1 after burn_C6_1_06d12h00m.jpg",
+        "EXP3 plate1 after burn_C6_1_09d12h00m.jpg"
     ];
 
     filesMap.clear();
@@ -138,10 +571,11 @@ document.getElementById('btnLoadExamples').addEventListener('click', async () =>
 
     for (const fileName of exampleFilenames) {
         try {
-            const response = await fetch(`./examples/${fileName}`);
+            const encodedName = encodeURIComponent(fileName);
+            const response = await fetch(`./examples/${encodedName}`);
             if (!response.ok) continue;
             const blob = await response.blob();
-            const file = new File([blob], fileName, { type: blob.type || 'image/tiff' });
+            const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
 
             const match = fileName.match(FILENAME_REGEX);
             if (match) {
@@ -159,15 +593,16 @@ document.getElementById('btnLoadExamples').addEventListener('click', async () =>
     }
 
     if (loadedCount > 0) {
-        statusBadge.innerText = `נטענו ${loadedCount} קבצי דוגמה!`;
+        statusBadge.innerText = dict.loadedExamples(loadedCount);
         populateSeriesDropdown();
     } else {
-        statusBadge.innerText = 'לא נתמצאו קבצים ב-examples/';
+        statusBadge.innerText = dict.noExamples;
     }
 });
 
 // --- Manual File Input ---
 document.getElementById('fileInput').addEventListener('change', (e) => {
+    const dict = i18n[currentLang];
     filesMap.clear();
     const files = Array.from(e.target.files);
 
@@ -183,7 +618,7 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
         }
     });
 
-    statusBadge.innerText = `נטענו ${files.length} קבצים!`;
+    statusBadge.innerText = dict.loadedManual(files.length);
     populateSeriesDropdown();
 });
 
@@ -216,11 +651,9 @@ function updateTimeDropdown() {
     renderPreview();
 }
 
-// --- 2. Simple Machine Learning (k-Means 1D Clustering) ---
+// --- 2. Algorithms ---
 function runKMeans1D(values, k = 3, maxIter = 10) {
     if (values.length === 0) return [0];
-    
-    // בחר מרכזים התחלתיים
     let centroids = [10, 128, 240];
     
     for (let iter = 0; iter < maxIter; iter++) {
@@ -247,6 +680,82 @@ function runKMeans1D(values, k = 3, maxIter = 10) {
         }
     }
     return centroids.sort((a, b) => a - b);
+}
+
+function getOtsuThreshold(pixels) {
+    if (pixels.length === 0) return 128;
+    const hist = new Array(256).fill(0);
+    for (let i = 0; i < pixels.length; i++) {
+        hist[pixels[i]]++;
+    }
+    const total = pixels.length;
+    let sum = 0;
+    for (let i = 0; i < 256; i++) {
+        sum += i * hist[i];
+    }
+    let sumB = 0;
+    let wB = 0;
+    let wF = 0;
+    let varMax = 0;
+    let threshold = 128;
+    for (let t = 0; t < 256; t++) {
+        wB += hist[t];
+        if (wB === 0) continue;
+        wF = total - wB;
+        if (wF === 0) break;
+        sumB += t * hist[t];
+        const mB = sumB / wB;
+        const mF = (sum - sumB) / wF;
+        const varBetween = wB * wF * (mB - mF) * (mB - mF);
+        if (varBetween > varMax) {
+            varMax = varBetween;
+            threshold = t;
+        }
+    }
+    return threshold;
+}
+
+function bradleyAdaptiveThreshold(gray, w, h, S = 25, T = 0.12) {
+    const intImg = new Uint32Array(w * h);
+    const out = new Uint8Array(w * h);
+
+    intImg[0] = gray[0];
+    for (let x = 1; x < w; x++) {
+        intImg[x] = intImg[x - 1] + gray[x];
+    }
+
+    for (let y = 1; y < h; y++) {
+        let rowSum = 0;
+        for (let x = 0; x < w; x++) {
+            const idx = y * w + x;
+            rowSum += gray[idx];
+            intImg[idx] = intImg[(y - 1) * w + x] + rowSum;
+        }
+    }
+
+    const s2 = Math.floor(S / 2);
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const idx = y * w + x;
+            const x1 = Math.max(0, x - s2);
+            const x2 = Math.min(w - 1, x + s2);
+            const y1 = Math.max(0, y - s2);
+            const y2 = Math.min(h - 1, y + s2);
+            const count = (x2 - x1 + 1) * (y2 - y1 + 1);
+
+            const sum = intImg[y2 * w + x2]
+                      - (x1 > 0 ? intImg[y2 * w + (x1 - 1)] : 0)
+                      - (y1 > 0 ? intImg[(y1 - 1) * w + x2] : 0)
+                      + (x1 > 0 && y1 > 0 ? intImg[(y1 - 1) * w + (x1 - 1)] : 0);
+
+            if (gray[idx] * count < sum * (1.0 - T)) {
+                out[idx] = 255;
+            } else {
+                out[idx] = 0;
+            }
+        }
+    }
+    return out;
 }
 
 // --- Image Processing Pipeline ---
@@ -289,12 +798,38 @@ async function processImageFile(fileItem, method) {
             let burnArea = 0;
 
             if (method === 'kmeans') {
-                // אשכול אוטומטי לפי Machine Learning (k-Means)
                 const centroids = runKMeans1D(roiPixels, 3);
                 const burnThreshold = centroids[0] + (centroids[1] - centroids[0]) * 0.5;
 
                 for (let i = 0; i < gray.length; i++) {
                     if (wellMask[i] > 0 && gray[i] < burnThreshold) {
+                        maskData[i] = 255;
+                        burnArea++;
+                    }
+                }
+            } else if (method === 'otsu') {
+                const otsuThreshold = getOtsuThreshold(roiPixels);
+
+                for (let i = 0; i < gray.length; i++) {
+                    if (wellMask[i] > 0 && gray[i] < otsuThreshold) {
+                        maskData[i] = 255;
+                        burnArea++;
+                    }
+                }
+            } else if (method === 'adaptive') {
+                const adaptiveMask = bradleyAdaptiveThreshold(gray, w, h, 25, 0.12);
+
+                for (let i = 0; i < gray.length; i++) {
+                    if (wellMask[i] > 0 && adaptiveMask[i] > 0) {
+                        maskData[i] = 255;
+                        burnArea++;
+                    }
+                }
+            } else if (method === 'manual') {
+                const manualThreshold = parseInt(document.getElementById('manualThresholdSlider').value);
+
+                for (let i = 0; i < gray.length; i++) {
+                    if (wellMask[i] > 0 && gray[i] < manualThreshold) {
                         maskData[i] = 255;
                         burnArea++;
                     }
@@ -339,11 +874,19 @@ async function renderPreview() {
         if (sData) {
             document.getElementById('metricClosure').innerText = `${sData.closure.toFixed(1)}%`;
             document.getElementById('metricRate').innerText = `${sData.rate.toFixed(2)} %/h`;
+        } else {
+            document.getElementById('metricClosure').innerText = `0%`;
+            document.getElementById('metricRate').innerText = `0 %/h`;
         }
+    } else {
+        document.getElementById('metricClosure').innerText = `0%`;
+        document.getElementById('metricRate').innerText = `0 %/h`;
     }
 }
 
 document.getElementById('btnProcess').addEventListener('click', async () => {
+    const dict = i18n[currentLang];
+    statusBadge.innerText = dict.processing;
     const method = document.getElementById('methodSelect').value;
     processedResults = {};
 
@@ -370,6 +913,7 @@ document.getElementById('btnProcess').addEventListener('click', async () => {
 
     renderCharts();
     renderPreview();
+    statusBadge.innerText = dict.done;
 });
 
 function renderCharts() {
@@ -395,16 +939,52 @@ function renderCharts() {
     if (chartClosureInst) chartClosureInst.destroy();
     if (chartRateInst) chartRateInst.destroy();
 
+    const xLabel = currentLang === 'he' ? 'זמן (שעות)' : 'Time (Hours)';
+    const yClosureLabel = currentLang === 'he' ? 'סגירת פצע (%)' : 'Wound Closure (%)';
+    const yRateLabel = currentLang === 'he' ? 'קצב סגירה (% לשעה)' : 'Closure Rate (%/h)';
+
     chartClosureInst = new Chart(document.getElementById('chartClosure'), {
         type: 'line',
         data: { datasets: datasetsClosure },
-        options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'linear' }, y: { min: 0, max: 105 } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' }
+            },
+            scales: {
+                x: {
+                    type: 'linear',
+                    title: { display: true, text: xLabel }
+                },
+                y: {
+                    min: 0,
+                    max: 105,
+                    title: { display: true, text: yClosureLabel }
+                }
+            }
+        }
     });
 
     chartRateInst = new Chart(document.getElementById('chartRate'), {
         type: 'line',
         data: { datasets: datasetsRate },
-        options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'linear' } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' }
+            },
+            scales: {
+                x: {
+                    type: 'linear',
+                    title: { display: true, text: xLabel }
+                },
+                y: {
+                    title: { display: true, text: yRateLabel }
+                }
+            }
+        }
     });
 }
 </script>
