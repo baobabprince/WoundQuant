@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WoundQuant JS — ML & Examples</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --bg-color: #f8f9fa; --panel-bg: #ffffff; --primary: #2563eb; --accent: #059669; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg-color); margin: 0; padding: 20px; color: #1e293b; }
+        .container { display: grid; grid-template-columns: 340px 1fr; gap: 20px; max-width: 1600px; margin: 0 auto; }
+        .panel { background: var(--panel-bg); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        h1 { margin-top: 0; font-size: 1.5rem; color: #0f172a; }
+        .control-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 5px; }
+        select, input[type="file"] { width: 100%; box-sizing: border-box; }
+        .btn { background: var(--primary); color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600; font-size: 0.95rem; margin-bottom: 10px; }
+        .btn:hover { opacity: 0.9; }
+        .btn-examples { background: var(--accent); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .canvas-container { display: flex; flex-direction: column; align-items: center; background: #000; border-radius: 8px; padding: 10px; }
+        canvas { max-width: 100%; height: auto; border-radius: 4px; }
+        .metrics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+        .metric-card { background: #f1f5f9; padding: 12px; border-radius: 8px; text-align: center; }
+        .metric-val { font-size: 1.2rem; font-weight: bold; color: var(--primary); }
+        .chart-box { position: relative; height: 280px; margin-bottom: 20px; }
+        .status-badge { font-size: 0.85rem; padding: 4px 8px; border-radius: 4px; background: #e2e8f0; display: inline-block; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<h1>🔬 WoundQuant JS — ניתוח כוויה בלמידת מכונה (ML & Examples)</h1>
+
+<div class="container">
+    <!-- Sidebar Controls -->
+    <div class="panel">
+        <div class="control-group">
+            <label>📁 העלאת תמונות או קבצי דוגמה</label>
+            <button class="btn btn-examples" id="btnLoadExamples">📂 טען קבצים מתיקיית examples</button>
+            <input type="file" id="fileInput" multiple accept="image/*">
+            <div class="status-badge" id="statusBadge">ממתין לקבצים...</div>
+        </div>
+
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
+
+        <h3>🤖 מצב ניתוח AI / ML</h3>
+        
+        <div class="control-group">
+            <label>שיטת סגמנטציה:</label>
+            <select id="methodSelect">
+                <option value="kmeans">k-Means Clustering (אוטומטי)</option>
+                <option value="entropy">Entropy Threshold (קלאסי)</option>
+            </select>
+        </div>
+
+        <button class="btn" id="btnProcess">🚀 הרץ ניתוח אצווה</button>
+    </div>
+
+    <!-- Main Display Panel -->
+    <div class="panel">
+        <div class="control-group grid-2">
+            <div>
+                <label>סדרה נבחרת (Well / Site):</label>
+                <select id="selectSeries"></select>
+            </div>
+            <div>
+                <label>נקודת זמן לבדיקה (שעות):</label>
+                <select id="selectTime"></select>
+            </div>
+        </div>
+
+        <!-- Canvas Display -->
+        <div class="grid-2">
+            <div class="canvas-container">
+                <canvas id="mainCanvas"></canvas>
+            </div>
+            <div>
+                <div class="metrics-row">
+                    <div class="metric-card">
+                        <div>שטח כוויה</div>
+                        <div class="metric-val" id="metricArea">0 px</div>
+                    </div>
+                    <div class="metric-card">
+                        <div>סגירה מצטברת</div>
+                        <div class="metric-val" id="metricClosure">0%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div>קצב סגירה</div>
+                        <div class="metric-val" id="metricRate">0 %/h</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
+
+        <!-- Charts -->
+        <div class="grid-2">
+            <div>
+                <h4>📈 אחוז סגירת הכוויה לאורך זמן</h4>
+                <div class="chart-box"><canvas id="chartClosure"></canvas></div>
+            </div>
+            <div>
+                <h4>⚡ קצב סגירה רגעי (%/h)</h4>
+                <div class="chart-box"><canvas id="chartRate"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let filesMap = new Map();
+let processedResults = {};
+let chartClosureInst = null;
+let chartRateInst = null;
+
+const FILENAME_REGEX = /_(?<well>[A-H]\d{1,2})_(?<site>\d+)_(?<days>\d{2})d(?<hours>\d{2})h(?<mins>\d{2})m/;
+
+const statusBadge = document.getElementById('statusBadge');
+const selectSeries = document.getElementById('selectSeries');
+const selectTime = document.getElementById('selectTime');
+const mainCanvas = document.getElementById('mainCanvas');
+const ctx = mainCanvas.getContext('2d');
+
+// --- 1. Auto-Load Files from `examples/` Folder ---
+document.getElementById('btnLoadExamples').addEventListener('click', async () => {
+    statusBadge.innerText = 'טוען קבצים מ-examples...';
+    
+    // רשימת שמות קבצי דוגמה נפוצים או טעינה דינמית
+    const exampleFilenames = [
+        "Experiment_B8_1_00d00h00m.tif",
+        "Experiment_B8_1_00d12h00m.tif",
+        "Experiment_B8_1_01d00h00m.tif"
+    ];
+
+    filesMap.clear();
+    let loadedCount = 0;
+
+    for (const fileName of exampleFilenames) {
+        try {
+            const response = await fetch(`./examples/${fileName}`);
+            if (!response.ok) continue;
+            const blob = await response.blob();
+            const file = new File([blob], fileName, { type: blob.type || 'image/tiff' });
+
+            const match = fileName.match(FILENAME_REGEX);
+            if (match) {
+                const { well, site, days, hours, mins } = match.groups;
+                const totalHours = parseInt(days)*24 + parseInt(hours) + parseInt(mins)/60;
+                const seriesKey = `${well}_Site${site}`;
+
+                if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);
+                filesMap.get(seriesKey).push({ file, hours: totalHours, well, site });
+                loadedCount++;
+            }
+        } catch (e) {
+            console.warn(`Could not load ./examples/${fileName}`, e);
+        }
+    }
+
+    if (loadedCount > 0) {
+        statusBadge.innerText = `נטענו ${loadedCount} קבצי דוגמה!`;
+        populateSeriesDropdown();
+    } else {
+        statusBadge.innerText = 'לא נתמצאו קבצים ב-examples/';
+    }
+});
+
+// --- Manual File Input ---
+document.getElementById('fileInput').addEventListener('change', (e) => {
+    filesMap.clear();
+    const files = Array.from(e.target.files);
+
+    files.forEach(file => {
+        const match = file.name.match(FILENAME_REGEX);
+        if (match) {
+            const { well, site, days, hours, mins } = match.groups;
+            const totalHours = parseInt(days)*24 + parseInt(hours) + parseInt(mins)/60;
+            const seriesKey = `${well}_Site${site}`;
+
+            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);
+            filesMap.get(seriesKey).push({ file, hours: totalHours, well, site });
+        }
+    });
+
+    statusBadge.innerText = `נטענו ${files.length} קבצים!`;
+    populateSeriesDropdown();
+});
+
+function populateSeriesDropdown() {
+    filesMap.forEach(arr => arr.sort((a,b) => a.hours - b.hours));
+    selectSeries.innerHTML = '';
+    filesMap.forEach((_, key) => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.innerText = key;
+        selectSeries.appendChild(opt);
+    });
+    if (filesMap.size > 0) updateTimeDropdown();
+}
+
+selectSeries.addEventListener('change', updateTimeDropdown);
+selectTime.addEventListener('change', renderPreview);
+
+function updateTimeDropdown() {
+    const key = selectSeries.value;
+    selectTime.innerHTML = '';
+    if (!key || !filesMap.has(key)) return;
+
+    filesMap.get(key).forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.hours;
+        opt.innerText = `${item.hours}h`;
+        selectTime.appendChild(opt);
+    });
+    renderPreview();
+}
+
+// --- 2. Simple Machine Learning (k-Means 1D Clustering) ---
+function runKMeans1D(values, k = 3, maxIter = 10) {
+    if (values.length === 0) return [0];
+    
+    // בחר מרכזים התחלתיים
+    let centroids = [10, 128, 240];
+    
+    for (let iter = 0; iter < maxIter; iter++) {
+        const clusters = Array.from({ length: k }, () => []);
+        
+        for (let i = 0; i < values.length; i++) {
+            const v = values[i];
+            let minDist = Infinity;
+            let closestIdx = 0;
+            for (let c = 0; c < k; c++) {
+                const dist = Math.abs(v - centroids[c]);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestIdx = c;
+                }
+            }
+            clusters[closestIdx].push(v);
+        }
+
+        for (let c = 0; c < k; c++) {
+            if (clusters[c].length > 0) {
+                centroids[c] = clusters[c].reduce((a, b) => a + b, 0) / clusters[c].length;
+            }
+        }
+    }
+    return centroids.sort((a, b) => a - b);
+}
+
+// --- Image Processing Pipeline ---
+async function processImageFile(fileItem, method) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const w = img.width, h = img.height;
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctxTemp = canvas.getContext('2d');
+            ctxTemp.drawImage(img, 0, 0);
+
+            const imgData = ctxTemp.getImageData(0, 0, w, h);
+            const data = imgData.data;
+            const gray = new Uint8Array(w * h);
+
+            for (let i = 0; i < data.length; i += 4) {
+                gray[i / 4] = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+            }
+
+            // Circular Well ROI Mask
+            const wellMask = new Uint8Array(w * h);
+            const cx = w / 2, cy = h / 2;
+            const radius = Math.min(w, h) / 2 - 15;
+            const r2 = radius * radius;
+            const roiPixels = [];
+
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const idx = y * w + x;
+                    if ((x - cx)**2 + (y - cy)**2 <= r2) {
+                        wellMask[idx] = 255;
+                        roiPixels.push(gray[idx]);
+                    }
+                }
+            }
+
+            const maskData = new Uint8Array(w * h);
+            let burnArea = 0;
+
+            if (method === 'kmeans') {
+                // אשכול אוטומטי לפי Machine Learning (k-Means)
+                const centroids = runKMeans1D(roiPixels, 3);
+                const burnThreshold = centroids[0] + (centroids[1] - centroids[0]) * 0.5;
+
+                for (let i = 0; i < gray.length; i++) {
+                    if (wellMask[i] > 0 && gray[i] < burnThreshold) {
+                        maskData[i] = 255;
+                        burnArea++;
+                    }
+                }
+            }
+
+            resolve({ burnArea, imgData, maskData, width: w, height: h });
+        };
+        img.src = URL.createObjectURL(fileItem.file);
+    });
+}
+
+// --- Preview & Chart Rendering ---
+async function renderPreview() {
+    const seriesKey = selectSeries.value;
+    const timeVal = parseFloat(selectTime.value);
+    if (!seriesKey || isNaN(timeVal)) return;
+
+    const item = filesMap.get(seriesKey).find(f => f.hours === timeVal);
+    if (!item) return;
+
+    const method = document.getElementById('methodSelect').value;
+    const res = await processImageFile(item, method);
+
+    mainCanvas.width = res.width;
+    mainCanvas.height = res.height;
+
+    const data = res.imgData.data;
+    for (let i = 0; i < res.maskData.length; i++) {
+        if (res.maskData[i] > 0) {
+            const idx = i * 4;
+            data[idx] = Math.min(255, data[idx] + 140); // Red highlight
+            data[idx+1] = Math.max(0, data[idx+1] - 40);
+            data[idx+2] = Math.max(0, data[idx+2] - 40);
+        }
+    }
+    ctx.putImageData(res.imgData, 0, 0);
+
+    document.getElementById('metricArea').innerText = `${res.burnArea.toLocaleString()} px`;
+    if (processedResults[seriesKey]) {
+        const sData = processedResults[seriesKey].find(d => d.hours === timeVal);
+        if (sData) {
+            document.getElementById('metricClosure').innerText = `${sData.closure.toFixed(1)}%`;
+            document.getElementById('metricRate').innerText = `${sData.rate.toFixed(2)} %/h`;
+        }
+    }
+}
+
+document.getElementById('btnProcess').addEventListener('click', async () => {
+    const method = document.getElementById('methodSelect').value;
+    processedResults = {};
+
+    for (let [seriesKey, items] of filesMap.entries()) {
+        const seriesData = [];
+        let initialArea = 0;
+
+        for (let i = 0; i < items.length; i++) {
+            const res = await processImageFile(items[i], method);
+            if (i === 0) initialArea = res.burnArea;
+            const closure = initialArea > 0 ? Math.max(0, (1 - (res.burnArea / initialArea)) * 100) : 0;
+
+            seriesData.push({ hours: items[i].hours, area: res.burnArea, closure: closure, rate: 0 });
+        }
+
+        for (let i = 1; i < seriesData.length; i++) {
+            const dt = seriesData[i].hours - seriesData[i-1].hours;
+            const dc = seriesData[i].closure - seriesData[i-1].closure;
+            seriesData[i].rate = dt > 0 ? (dc / dt) : 0;
+        }
+
+        processedResults[seriesKey] = seriesData;
+    }
+
+    renderCharts();
+    renderPreview();
+});
+
+function renderCharts() {
+    const keys = Object.keys(processedResults);
+    if (keys.length === 0) return;
+
+    const colors = ['#2563eb', '#dc2626', '#16a34a', '#d97706'];
+
+    const datasetsClosure = keys.map((k, idx) => ({
+        label: k,
+        data: processedResults[k].map(d => ({ x: d.hours, y: d.closure })),
+        borderColor: colors[idx % colors.length],
+        tension: 0.2
+    }));
+
+    const datasetsRate = keys.map((k, idx) => ({
+        label: k,
+        data: processedResults[k].map(d => ({ x: d.hours, y: d.rate })),
+        borderColor: colors[idx % colors.length],
+        tension: 0.2
+    }));
+
+    if (chartClosureInst) chartClosureInst.destroy();
+    if (chartRateInst) chartRateInst.destroy();
+
+    chartClosureInst = new Chart(document.getElementById('chartClosure'), {
+        type: 'line',
+        data: { datasets: datasetsClosure },
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'linear' }, y: { min: 0, max: 105 } } }
+    });
+
+    chartRateInst = new Chart(document.getElementById('chartRate'), {
+        type: 'line',
+        data: { datasets: datasetsRate },
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'linear' } } }
+    });
+}
+</script>
+</body>
+</html>
