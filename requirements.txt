@@ -1,6 +1,0 @@
-opencv-python-headless
-numpy
-pandas
-plotly
-streamlit
-scikit-image
