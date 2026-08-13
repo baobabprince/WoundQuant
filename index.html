@@ -1455,32 +1455,141 @@ function getWellMaskDynamic(gray, w, h, cropMargin = 15) {
     return wellMask;
 }
 
-// Watershed Algorithm using bucket priority queue grown on the local texture/gradient
-function runWatershed(textureMap, wellMask, w, h) {
-    const markers = new Int32Array(w * h); // 0: unlabelled, 1: burn, 2: healthy, -1: outside well
-
-    const cx = w / 2, cy = h / 2;
-
-    // Find dynamic centroid of the wellMask
-    let sumX = 0, sumY = 0, count = 0;
-    for (let i = 0; i < w * h; i++) {
-        if (wellMask[i] > 0) {
-            sumX += i % w;
-            sumY += Math.floor(i / w);
-            count++;
+// Compute morphological gradient (dilation - erosion) of an image
+function computeGradient(image, w, h, radius = 2) {
+    const out = new Uint8Array(w * h);
+    const r2 = radius * radius;
+    const offsets = [];
+    for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+            if (dx*dx + dy*dy <= r2) {
+                offsets.push(dy * w + dx);
+            }
         }
     }
-    const wcx = count > 0 ? (sumX / count) : cx;
-    const wcy = count > 0 ? (sumY / count) : cy;
+    const numOffsets = offsets.length;
 
-    // Calculate approximate dynamic radius of wellMask
-    const wellRadius = count > 0 ? Math.sqrt(count / Math.PI) : Math.min(w, h) / 2 - 15;
+    for (let y = 0; y < h; y++) {
+        const rowOffset = y * w;
+        const minY = Math.max(0, y - radius);
+        const maxY = Math.min(h - 1, y + radius);
+        for (let x = 0; x < w; x++) {
+            const idx = rowOffset + x;
+            const minX = Math.max(0, x - radius);
+            const maxX = Math.min(w - 1, x + radius);
 
-    // Centers of burn seed
-    const burnSeedRad = wellRadius / 5.5;
-    // Outer rim of healthy cells seed
-    const outerRimMin = wellRadius * 0.85;
+            let maxVal = 0;
+            let minVal = 255;
 
+            for (let dy = minY; dy <= maxY; dy++) {
+                const nRowOffset = dy * w;
+                for (let dx = minX; dx <= maxX; dx++) {
+                    const val = image[nRowOffset + dx];
+                    if (val > maxVal) maxVal = val;
+                    if (val < minVal) minVal = val;
+                }
+            }
+            out[idx] = maxVal - minVal;
+        }
+    }
+    return out;
+}
+
+// Watershed Algorithm using bucket priority queue grown on the morphological gradient of the texture map
+function runWatershed(textureMap, wellMask, w, h, closedBinary) {
+    const markers = new Int32Array(w * h); // 0: unlabelled, 1: burn, 2: healthy, -1: outside well
+
+    // 1. Compute morphological gradient of the texture map to flood along boundaries
+    const gradientMap = computeGradient(textureMap, w, h, 2);
+
+    // 2. Generate Burn Seed by eroding closedBinary
+    // Since closedBinary contains 255 for burn and 0 for healthy,
+    // we erode it with a radius of 12 to get a secure, dynamic core burn seed.
+    let burnSeed = erode(closedBinary, w, h, 12);
+
+    // Check if burn seed is empty
+    let burnSeedCount = 0;
+    for (let i = 0; i < w * h; i++) {
+        if (burnSeed[i] > 0 && wellMask[i] > 0) burnSeedCount++;
+    }
+
+    if (burnSeedCount === 0) {
+        // Fallback: find centroid of closedBinary
+        let sumX = 0, sumY = 0, count = 0;
+        for (let i = 0; i < w * h; i++) {
+            if (closedBinary[i] > 0 && wellMask[i] > 0) {
+                sumX += i % w;
+                sumY += Math.floor(i / w);
+                count++;
+            }
+        }
+        if (count > 0) {
+            const cx = Math.round(sumX / count);
+            const cy = Math.round(sumY / count);
+            for (let dy = -3; dy <= 3; dy++) {
+                for (let dx = -3; dx <= 3; dx++) {
+                    if (dx*dx + dy*dy <= 9) {
+                        const nx = cx + dx;
+                        const ny = cy + dy;
+                        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                            burnSeed[ny * w + nx] = 255;
+                        }
+                    }
+                }
+            }
+        } else {
+            // Absolute fallback: center of the well
+            let sumXw = 0, sumYw = 0, countW = 0;
+            for (let i = 0; i < w * h; i++) {
+                if (wellMask[i] > 0) {
+                    sumXw += i % w;
+                    sumYw += Math.floor(i / w);
+                    countW++;
+                }
+            }
+            const cx = countW > 0 ? Math.round(sumXw / countW) : Math.round(w / 2);
+            const cy = countW > 0 ? Math.round(sumYw / countW) : Math.round(h / 2);
+            for (let dy = -3; dy <= 3; dy++) {
+                for (let dx = -3; dx <= 3; dx++) {
+                    if (dx*dx + dy*dy <= 9) {
+                        const nx = cx + dx;
+                        const ny = cy + dy;
+                        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                            burnSeed[ny * w + nx] = 255;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Generate Healthy Seed by dilating closedBinary and taking the inverse (within wellMask)
+    let dilatedWound = dilate(closedBinary, w, h, 12);
+    let healthySeedCount = 0;
+
+    for (let i = 0; i < w * h; i++) {
+        if (wellMask[i] > 0 && dilatedWound[i] === 0) {
+            healthySeedCount++;
+        }
+    }
+
+    let useOuterRimFallback = (healthySeedCount < w * h * 0.02);
+
+    // Find centroid of the well for rim fallback
+    let sumXw = 0, sumYw = 0, countW = 0;
+    for (let i = 0; i < w * h; i++) {
+        if (wellMask[i] > 0) {
+            sumXw += i % w;
+            sumYw += Math.floor(i / w);
+            countW++;
+        }
+    }
+    const wcx = countW > 0 ? (sumXw / countW) : (w / 2);
+    const wcy = countW > 0 ? (sumYw / countW) : (h / 2);
+    const wellRadius = countW > 0 ? Math.sqrt(countW / Math.PI) : Math.min(w, h) / 2 - 15;
+    const outerRimMin = wellRadius * 0.92;
+
+    // 4. Set markers
     for (let y = 0; y < h; y++) {
         const rowOffset = y * w;
         for (let x = 0; x < w; x++) {
@@ -1488,20 +1597,23 @@ function runWatershed(textureMap, wellMask, w, h) {
             if (wellMask[idx] === 0) {
                 markers[idx] = -1; // Outside well
             } else {
-                const distToCenter = Math.sqrt((x - wcx)**2 + (y - wcy)**2);
-                if (distToCenter <= burnSeedRad) {
-                    markers[idx] = 1; // Burn Seed
-                } else if (distToCenter >= outerRimMin) {
-                    markers[idx] = 2; // Healthy Cell Seed
+                if (burnSeed[idx] > 0) {
+                    markers[idx] = 1; // Burn marker
+                } else if (useOuterRimFallback) {
+                    const distToCenter = Math.sqrt((x - wcx)**2 + (y - wcy)**2);
+                    if (distToCenter >= outerRimMin) {
+                        markers[idx] = 2; // Healthy marker fallback
+                    }
+                } else if (dilatedWound[idx] === 0) {
+                    markers[idx] = 2; // Healthy marker
                 }
             }
         }
     }
 
-    // Buckets queue
+    // 5. Run Watershed flooding on the morphological gradient map
     const buckets = Array.from({ length: 256 }, () => []);
 
-    // Fill initial seed neighbors
     for (let y = 0; y < h; y++) {
         const rowOffset = y * w;
         for (let x = 0; x < w; x++) {
@@ -1516,21 +1628,21 @@ function runWatershed(textureMap, wellMask, w, h) {
                 for (let n = 0; n < neighbors.length; n++) {
                     const nidx = neighbors[n];
                     if (markers[nidx] === 0) {
-                        const val = textureMap[nidx];
+                        const val = gradientMap[nidx];
                         buckets[val].push(nidx);
-                        markers[nidx] = markers[idx] + 10; // offset
+                        markers[nidx] = markers[idx] + 10;
                     }
                 }
             }
         }
     }
 
-    // Run Watershed
+    // Flooding
     for (let val = 0; val < 256; val++) {
         while (buckets[val].length > 0) {
             const idx = buckets[val].pop();
             const queuedSeed = markers[idx] - 10;
-            markers[idx] = queuedSeed; // finalize label
+            markers[idx] = queuedSeed;
 
             const cx = idx % w;
             const cy = Math.floor(idx / w);
@@ -1544,7 +1656,7 @@ function runWatershed(textureMap, wellMask, w, h) {
             for (let n = 0; n < neighbors.length; n++) {
                 const nidx = neighbors[n];
                 if (markers[nidx] === 0) {
-                    const nval = textureMap[nidx];
+                    const nval = gradientMap[nidx];
                     buckets[nval].push(nidx);
                     markers[nidx] = queuedSeed + 10;
                 }
@@ -1552,6 +1664,7 @@ function runWatershed(textureMap, wellMask, w, h) {
         }
     }
 
+    // 6. Build the final binary mask
     const binary = new Uint8Array(w * h);
     for (let i = 0; i < w * h; i++) {
         if (markers[i] === 1) {
@@ -1764,8 +1877,8 @@ async function processImageFile(fileItem, cropMargin, textureFilter, textureRadi
             let finalMask = new Uint8Array(w * h);
 
             if (postProcess === 'watershed') {
-                // Watershed on local texture gradient map
-                finalMask = runWatershed(processedGray, wellMask, w, h);
+                // Watershed on morphological gradient map using dynamic seeds from the thresholded mask
+                finalMask = runWatershed(processedGray, wellMask, w, h, closedBinary);
             } else if (postProcess === 'largest') {
                 const components = findConnectedComponents(closedBinary, w, h);
                 if (components.length > 0) {
