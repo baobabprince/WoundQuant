@@ -158,12 +158,52 @@
             background: var(--primary-hover);
         }
 
-        .btn-examples {
-            background: var(--accent);
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-main);
+            border: 2px solid var(--border-color);
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 700;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            box-sizing: border-box;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 12px;
         }
 
-        .btn-examples:hover {
-            background: var(--accent-hover);
+        .btn-secondary:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+        .step-btn {
+            background: #f1f5f9;
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+
+        .step-btn:hover {
+            background: #e2e8f0;
+        }
+
+        .step-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
         }
 
         .grid-2 {
@@ -332,9 +372,26 @@
     <div class="panel">
         <div class="control-group">
             <label id="labelUpload">📁 העלאת תמונות או קבצי דוגמה</label>
-            <button class="btn btn-examples" id="btnLoadExamples">📂 טען קבצים מתיקיית examples</button>
-            <input type="file" id="fileInput" multiple accept="image/*">
-            <div class="status-badge" id="statusBadge">ממתין לקבצים...</div>
+            <!-- Prominent File Upload Label/Button -->
+            <label for="fileInput" class="btn" id="btnUploadCustom" style="display: flex; align-items: center; justify-content: center; cursor: pointer; margin-bottom: 12px; margin-top: 8px;">
+                📤 <span id="textUploadBtn">העלה תמונות חדשות</span>
+            </label>
+            <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+
+            <!-- Less Prominent Example Button (Subtle grey outline) -->
+            <button class="btn-secondary" id="btnLoadExamples">
+                📂 <span id="textLoadExamplesBtn">טען תמונות לדוגמה</span>
+            </button>
+
+            <div class="status-badge" id="statusBadge" style="margin-top: 10px;">ממתין לקבצים...</div>
+
+            <!-- General Progress Bar Container -->
+            <div id="progressContainer" style="display: none; margin-top: 15px;">
+                <div id="progressBarLabel" style="font-size: 0.85rem; font-weight: 700; margin-bottom: 5px; color: var(--text-main);">מעבד...</div>
+                <div style="background: #e2e8f0; border-radius: 9999px; height: 10px; overflow: hidden; width: 100%;">
+                    <div id="progressBarFill" style="background: var(--primary); height: 100%; width: 0%; transition: width 0.2s ease;"></div>
+                </div>
+            </div>
         </div>
 
         <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
@@ -462,7 +519,22 @@
         <!-- Canvas Display -->
         <div class="grid-2">
             <div class="canvas-container">
+                <!-- Toggle Wound Marking Overlay Button -->
+                <button class="btn" id="btnToggleMarking" onclick="toggleWoundMarking()" style="margin-bottom: 12px; background: var(--accent); max-width: 300px; width: 100%;">👁️ הסר סימון כוויה</button>
+
                 <canvas id="mainCanvas"></canvas>
+
+                <!-- Interactive Intermediate Steps Gallery/Tabs -->
+                <div id="stepButtonsContainer" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 15px; width: 100%;">
+                    <button class="step-btn active" id="step_final_overlay" onclick="setViewStep('final_overlay')">סימון כוויה</button>
+                    <button class="step-btn" id="step_original" onclick="setViewStep('original')">תמונה מקורית</button>
+                    <button class="step-btn" id="step_sharpened" onclick="setViewStep('sharpened')">תמונה משופרת</button>
+                    <button class="step-btn" id="step_well_mask" onclick="setViewStep('well_mask')">מסכת בארית</button>
+                    <button class="step-btn" id="step_texture" onclick="setViewStep('texture')">מפת טקסטורה</button>
+                    <button class="step-btn" id="step_threshold" onclick="setViewStep('threshold')">סף סגמנטציה</button>
+                    <button class="step-btn" id="step_closing" onclick="setViewStep('closing')">סגירה מורפולוגית</button>
+                    <button class="step-btn" id="step_final_mask" onclick="setViewStep('final_mask')">מסכה סופית</button>
+                </div>
             </div>
             <div>
                 <div class="metrics-row">
@@ -498,20 +570,55 @@
     </div>
 </div>
 
+<!-- Beautiful footer with GitHub Repository link -->
+<footer style="margin-top: 40px; text-align: center; padding: 25px; border-top: 1px solid #cbd5e1; font-size: 0.95rem; color: var(--text-muted); background: #ffffff; border-radius: 12px 12px 0 0; box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.02); max-width: 1600px; margin-left: auto; margin-right: auto; box-sizing: border-box;">
+    <span id="footerText">WoundQuant JS © 2026</span> |
+    <a id="githubLink" href="https://github.com/baobabprince/WoundQuant" target="_blank" style="color: var(--primary); text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s;">
+        <svg height="18" width="18" viewBox="0 0 16 16" style="fill: currentColor; vertical-align: middle;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+        <span id="textGithubRepo">מאגר ה-GitHub</span>
+    </a>
+</footer>
+
 <script>
 let filesMap = new Map();
 let processedResults = {};
 let chartClosureInst = null;
 let chartRateInst = null;
 let currentLang = "he";
+let lastResult = null;
+let currentViewStep = 'final_overlay';
+let showWoundMarking = true;
 
 const FILENAME_REGEX = /_(?<well>[A-H]\d{1,2})_(?<site>\d+)_(?<days>\d{2})d(?<hours>\d{2})h(?<mins>\d{2})m/;
+
+// Classical 3x3 Laplacian sharpening filter
+function sharpenGrayscale(gray, w, h) {
+    const out = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) {
+        const rowOffset = y * w;
+        for (let x = 0; x < w; x++) {
+            const idx = rowOffset + x;
+            if (y === 0 || y === h - 1 || x === 0 || x === w - 1) {
+                out[idx] = gray[idx];
+                continue;
+            }
+            const val = 5 * gray[idx]
+                        - gray[idx - w]
+                        - gray[idx - 1]
+                        - gray[idx + 1]
+                        - gray[idx + w];
+            out[idx] = Math.max(0, Math.min(255, val));
+        }
+    }
+    return out;
+}
 
 const i18n = {
     he: {
         title: "🔬 WoundQuant JS — ניתוח טקסטורה ואזור כוויה רציף",
         uploadLabel: "📁 העלאת תמונות או קבצי דוגמה",
-        loadExamples: "📂 טען קבצים מתיקיית examples",
+        loadExamples: "📂 טען תמונות לדוגמה",
+        uploadBtn: "העלה תמונות חדשות",
         waitingFiles: "ממתין לקבצים...",
         aiTitle: "🤖 הגדרות ניתוח מתקדמות",
         cropMarginLabel: "שולי בארית (Well Crop Margin):",
@@ -548,12 +655,25 @@ const i18n = {
         varianceTexture: "שונות מקומית (Local Variance)",
         largestComp: "הרכיב הקשיר הגדול ביותר בלבד",
         watershedComp: "אלגוריתם Watershed (קו פרשת המים)",
-        proximityComp: "סינון רכיבים לפי גודל וקרבה"
+        proximityComp: "סינון רכיבים לפי גודל וקרבה",
+        hideMarking: "👁️ הסר סימון כוויה",
+        showMarking: "👁️ הצג סימון כוויה",
+        step_final_overlay: "סימון כוויה",
+        step_original: "תמונה מקורית",
+        step_sharpened: "תמונה משופרת",
+        step_well_mask: "מסכת בארית",
+        step_texture: "מפת טקסטורה",
+        step_threshold: "סף סגמנטציה",
+        step_closing: "סגירה מורפולוגית",
+        step_final_mask: "מסכה סופית",
+        footerText: "WoundQuant JS © 2026",
+        githubRepo: "מאגר ה-GitHub"
     },
     en: {
         title: "🔬 WoundQuant JS — Texture & Continuous Burn Analysis",
         uploadLabel: "📁 Upload Images or Example Files",
-        loadExamples: "📂 Load Files from examples folder",
+        loadExamples: "📂 Load Example Images",
+        uploadBtn: "Upload New Images",
         waitingFiles: "Waiting for files...",
         aiTitle: "🤖 Advanced Analysis Options",
         cropMarginLabel: "Well Crop Margin:",
@@ -590,7 +710,19 @@ const i18n = {
         varianceTexture: "Local Variance Filter",
         largestComp: "Largest Connected Component Only",
         watershedComp: "Watershed Algorithm (קו פרשת המים)",
-        proximityComp: "Filter Components by Proximity & Size"
+        proximityComp: "Filter Components by Proximity & Size",
+        hideMarking: "👁️ Hide Wound Marking",
+        showMarking: "👁️ Show Wound Marking",
+        step_final_overlay: "Wound Marking",
+        step_original: "Original Image",
+        step_sharpened: "Sharpened Image",
+        step_well_mask: "Well Mask",
+        step_texture: "Texture Map",
+        step_threshold: "Segmentation Threshold",
+        step_closing: "Morphological Closing",
+        step_final_mask: "Final Mask",
+        footerText: "WoundQuant JS © 2026",
+        githubRepo: "GitHub Repository"
     }
 };
 
@@ -613,7 +745,10 @@ function updateLanguage() {
 
     document.getElementById('pageTitle').innerText = dict.title;
     document.getElementById('labelUpload').innerText = dict.uploadLabel;
-    document.getElementById('btnLoadExamples').innerText = dict.loadExamples;
+
+    // Upload button and load examples button text
+    document.getElementById('textUploadBtn').innerText = dict.uploadBtn;
+    document.getElementById('textLoadExamplesBtn').innerText = dict.loadExamples;
 
     if (statusBadge.innerText === i18n.he.waitingFiles || statusBadge.innerText === i18n.en.waitingFiles) {
         statusBadge.innerText = dict.waitingFiles;
@@ -652,6 +787,30 @@ function updateLanguage() {
 
     document.getElementById('titleChartClosure').innerText = dict.chartClosureTitle;
     document.getElementById('titleChartRate').innerText = dict.chartRateTitle;
+
+    // Toggle button translation
+    const btnMarking = document.getElementById('btnToggleMarking');
+    if (showWoundMarking) {
+        btnMarking.innerText = dict.hideMarking;
+        btnMarking.style.background = "var(--accent)";
+    } else {
+        btnMarking.innerText = dict.showMarking;
+        btnMarking.style.background = "#64748b";
+    }
+
+    // Step buttons translation
+    document.getElementById('step_final_overlay').innerText = dict.step_final_overlay;
+    document.getElementById('step_original').innerText = dict.step_original;
+    document.getElementById('step_sharpened').innerText = dict.step_sharpened;
+    document.getElementById('step_well_mask').innerText = dict.step_well_mask;
+    document.getElementById('step_texture').innerText = dict.step_texture;
+    document.getElementById('step_threshold').innerText = dict.step_threshold;
+    document.getElementById('step_closing').innerText = dict.step_closing;
+    document.getElementById('step_final_mask').innerText = dict.step_final_mask;
+
+    // Footer translation
+    document.getElementById('footerText').innerText = dict.footerText;
+    document.getElementById('textGithubRepo').innerText = dict.githubRepo;
 
     // Texture selector translation
     const textureSelect = document.getElementById('textureSelect');
@@ -723,11 +882,48 @@ function updateClosingRadiusDisplay(val) {
     renderPreview();
 }
 
+function setViewStep(step) {
+    currentViewStep = step;
+    const btns = document.querySelectorAll('.step-btn');
+    btns.forEach(btn => {
+        if (btn.id === `step_${step}`) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    renderPreview(true);
+}
+
+function toggleWoundMarking() {
+    showWoundMarking = !showWoundMarking;
+    const btn = document.getElementById('btnToggleMarking');
+    const dict = i18n[currentLang];
+    if (showWoundMarking) {
+        btn.innerText = dict.hideMarking;
+        btn.style.background = "var(--accent)";
+    } else {
+        btn.innerText = dict.showMarking;
+        btn.style.background = "#64748b";
+    }
+    renderPreview(true);
+}
+
 // --- 1. Auto-Load Files from `examples/` Folder ---
 document.getElementById('btnLoadExamples').addEventListener('click', async () => {
     const dict = i18n[currentLang];
     statusBadge.innerText = dict.loadingExamples;
     
+    // Reset view steps and caches on loading new examples
+    lastResult = null;
+    currentViewStep = 'final_overlay';
+    showWoundMarking = true;
+    const btns = document.querySelectorAll('.step-btn');
+    btns.forEach(btn => {
+        if (btn.id === 'step_final_overlay') btn.classList.add('active');
+        else btn.classList.remove('active');
+    });
+
     const exampleFilenames = [
         "EXP3 plate1 after burn_B1_1_00d00h00m.jpg",
         "EXP3 plate1 after burn_B1_1_03d00h00m.jpg",
@@ -782,6 +978,16 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
     const dict = i18n[currentLang];
     filesMap.clear();
     const files = Array.from(e.target.files);
+
+    // Reset view steps and caches on loading new files
+    lastResult = null;
+    currentViewStep = 'final_overlay';
+    showWoundMarking = true;
+    const btns = document.querySelectorAll('.step-btn');
+    btns.forEach(btn => {
+        if (btn.id === 'step_final_overlay') btn.classList.add('active');
+        else btn.classList.remove('active');
+    });
 
     files.forEach(file => {
         const match = file.name.match(FILENAME_REGEX);
@@ -1467,21 +1673,24 @@ async function processImageFile(fileItem, cropMargin, textureFilter, textureRadi
                 gray[i / 4] = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
             }
 
+            // Apply classical Laplacian sharpening on the grayscale image automatically to boost signals/features
+            const sharpenedGray = sharpenGrayscale(gray, w, h);
+
             // 1. DYNAMIC Well Mask Detection (Isolates the inside of the well and completely ignores dark background outside)
-            const wellMask = getWellMaskDynamic(gray, w, h, cropMargin);
+            const wellMask = getWellMaskDynamic(sharpenedGray, w, h, cropMargin);
             const roiPixels = [];
-            for (let i = 0; i < gray.length; i++) {
+            for (let i = 0; i < sharpenedGray.length; i++) {
                 if (wellMask[i] > 0) {
-                    roiPixels.push(gray[i]);
+                    roiPixels.push(sharpenedGray[i]);
                 }
             }
 
             // 2. Texture Filtering
-            let processedGray = gray;
+            let processedGray = sharpenedGray;
             if (textureFilter === 'entropy') {
-                processedGray = computeLocalEntropy(gray, w, h, textureRadius);
+                processedGray = computeLocalEntropy(sharpenedGray, w, h, textureRadius);
             } else if (textureFilter === 'variance') {
-                processedGray = computeLocalVariance(gray, w, h, textureRadius);
+                processedGray = computeLocalVariance(sharpenedGray, w, h, textureRadius);
             }
 
             // Re-collect ROI pixels of filtered map
@@ -1542,9 +1751,13 @@ async function processImageFile(fileItem, cropMargin, textureFilter, textureRadi
                 }
             }
 
+            // Keep a copy of threshBinary before closing
+            const rawThreshBinary = new Uint8Array(threshBinary);
+
             // 4. Morphological Closing (Connect branches)
+            let closedBinary = threshBinary;
             if (closingRad > 0) {
-                threshBinary = morphologicalClose(threshBinary, w, h, closingRad);
+                closedBinary = morphologicalClose(threshBinary, w, h, closingRad);
             }
 
             // 5. Post Processing (Continuous Area Detection)
@@ -1554,7 +1767,7 @@ async function processImageFile(fileItem, cropMargin, textureFilter, textureRadi
                 // Watershed on local texture gradient map
                 finalMask = runWatershed(processedGray, wellMask, w, h);
             } else if (postProcess === 'largest') {
-                const components = findConnectedComponents(threshBinary, w, h);
+                const components = findConnectedComponents(closedBinary, w, h);
                 if (components.length > 0) {
                     components.sort((a,b) => b.length - a.length);
                     const largest = components[0];
@@ -1563,7 +1776,7 @@ async function processImageFile(fileItem, cropMargin, textureFilter, textureRadi
                     }
                 }
             } else if (postProcess === 'proximity') {
-                const components = findConnectedComponents(threshBinary, w, h);
+                const components = findConnectedComponents(closedBinary, w, h);
                 if (components.length > 0) {
                     components.sort((a,b) => b.length - a.length);
                     const largest = components[0];
@@ -1611,14 +1824,120 @@ async function processImageFile(fileItem, cropMargin, textureFilter, textureRadi
             const scaleFactor = (originalW * originalH) / (w * h);
             const scaledBurnArea = Math.round(burnArea * scaleFactor);
 
-            resolve({ burnArea: scaledBurnArea, imgData, maskData: finalMask, width: w, height: h });
+            resolve({
+                burnArea: scaledBurnArea,
+                imgData,
+                gray,
+                sharpenedGray,
+                wellMask,
+                processedGray,
+                threshBinary: rawThreshBinary,
+                closedBinary,
+                finalMask,
+                width: w,
+                height: h
+            });
         };
         img.src = URL.createObjectURL(fileItem.file);
     });
 }
 
 // --- Preview & Chart Rendering ---
-async function renderPreview() {
+function drawViewStep(res) {
+    if (currentViewStep === 'original') {
+        ctx.putImageData(res.imgData, 0, 0);
+    } else if (currentViewStep === 'sharpened') {
+        const tempImgData = ctx.createImageData(res.width, res.height);
+        const data = tempImgData.data;
+        for (let i = 0; i < res.width * res.height; i++) {
+            const g = res.sharpenedGray[i];
+            const idx = i * 4;
+            data[idx] = g;
+            data[idx+1] = g;
+            data[idx+2] = g;
+            data[idx+3] = 255;
+        }
+        ctx.putImageData(tempImgData, 0, 0);
+    } else if (currentViewStep === 'well_mask') {
+        const tempImgData = ctx.createImageData(res.width, res.height);
+        const data = tempImgData.data;
+        for (let i = 0; i < res.width * res.height; i++) {
+            const val = res.wellMask[i];
+            const idx = i * 4;
+            data[idx] = val;
+            data[idx+1] = val;
+            data[idx+2] = val;
+            data[idx+3] = 255;
+        }
+        ctx.putImageData(tempImgData, 0, 0);
+    } else if (currentViewStep === 'texture') {
+        const tempImgData = ctx.createImageData(res.width, res.height);
+        const data = tempImgData.data;
+        for (let i = 0; i < res.width * res.height; i++) {
+            const g = res.processedGray[i];
+            const idx = i * 4;
+            data[idx] = g;
+            data[idx+1] = g;
+            data[idx+2] = g;
+            data[idx+3] = 255;
+        }
+        ctx.putImageData(tempImgData, 0, 0);
+    } else if (currentViewStep === 'threshold') {
+        const tempImgData = ctx.createImageData(res.width, res.height);
+        const data = tempImgData.data;
+        for (let i = 0; i < res.width * res.height; i++) {
+            const val = res.threshBinary[i];
+            const idx = i * 4;
+            data[idx] = val;
+            data[idx+1] = val;
+            data[idx+2] = val;
+            data[idx+3] = 255;
+        }
+        ctx.putImageData(tempImgData, 0, 0);
+    } else if (currentViewStep === 'closing') {
+        const tempImgData = ctx.createImageData(res.width, res.height);
+        const data = tempImgData.data;
+        for (let i = 0; i < res.width * res.height; i++) {
+            const val = res.closedBinary[i];
+            const idx = i * 4;
+            data[idx] = val;
+            data[idx+1] = val;
+            data[idx+2] = val;
+            data[idx+3] = 255;
+        }
+        ctx.putImageData(tempImgData, 0, 0);
+    } else if (currentViewStep === 'final_mask') {
+        const tempImgData = ctx.createImageData(res.width, res.height);
+        const data = tempImgData.data;
+        for (let i = 0; i < res.width * res.height; i++) {
+            const val = res.finalMask[i];
+            const idx = i * 4;
+            data[idx] = val;
+            data[idx+1] = val;
+            data[idx+2] = val;
+            data[idx+3] = 255;
+        }
+        ctx.putImageData(tempImgData, 0, 0);
+    } else { // 'final_overlay'
+        const tempImgData = ctx.createImageData(res.width, res.height);
+        tempImgData.data.set(res.imgData.data);
+
+        if (showWoundMarking) {
+            const data = tempImgData.data;
+            for (let i = 0; i < res.finalMask.length; i++) {
+                if (res.finalMask[i] > 0) {
+                    const idx = i * 4;
+                    data[idx] = Math.min(255, data[idx] + 130);
+                    data[idx+1] = Math.max(0, data[idx+1] - 45);
+                    data[idx+2] = Math.max(0, data[idx+2] - 45);
+                }
+            }
+        }
+        ctx.putImageData(tempImgData, 0, 0);
+    }
+}
+
+async function renderPreview(useCache = false) {
     const seriesKey = selectSeries.value;
     const timeVal = parseFloat(selectTime.value);
     if (!seriesKey || isNaN(timeVal)) return;
@@ -1626,30 +1945,29 @@ async function renderPreview() {
     const item = filesMap.get(seriesKey).find(f => f.hours === timeVal);
     if (!item) return;
 
-    const cropMargin = parseInt(document.getElementById('cropMarginSlider').value);
-    const textureFilter = document.getElementById('textureSelect').value;
-    const textureRadius = parseInt(document.getElementById('textureRadiusSlider').value);
-    const threshMethod = document.getElementById('methodSelect').value;
-    const invertThresh = document.getElementById('invertThreshCheckbox').checked;
-    const postProcess = document.getElementById('postProcessSelect').value;
-    const closingRad = parseInt(document.getElementById('closingRadiusSlider').value);
-    const useHull = document.getElementById('convexHullCheckbox').checked;
+    let res;
+    if (useCache && lastResult && lastResult.seriesKey === seriesKey && lastResult.hours === timeVal) {
+        res = lastResult;
+    } else {
+        const cropMargin = parseInt(document.getElementById('cropMarginSlider').value);
+        const textureFilter = document.getElementById('textureSelect').value;
+        const textureRadius = parseInt(document.getElementById('textureRadiusSlider').value);
+        const threshMethod = document.getElementById('methodSelect').value;
+        const invertThresh = document.getElementById('invertThreshCheckbox').checked;
+        const postProcess = document.getElementById('postProcessSelect').value;
+        const closingRad = parseInt(document.getElementById('closingRadiusSlider').value);
+        const useHull = document.getElementById('convexHullCheckbox').checked;
 
-    const res = await processImageFile(item, cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull);
+        res = await processImageFile(item, cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull);
+        res.seriesKey = seriesKey;
+        res.hours = timeVal;
+        lastResult = res;
+    }
 
     mainCanvas.width = res.width;
     mainCanvas.height = res.height;
 
-    const data = res.imgData.data;
-    for (let i = 0; i < res.maskData.length; i++) {
-        if (res.maskData[i] > 0) {
-            const idx = i * 4;
-            data[idx] = Math.min(255, data[idx] + 130); // Beautiful red highlight overlay
-            data[idx+1] = Math.max(0, data[idx+1] - 45);
-            data[idx+2] = Math.max(0, data[idx+2] - 45);
-        }
-    }
-    ctx.putImageData(res.imgData, 0, 0);
+    drawViewStep(res);
 
     document.getElementById('metricArea').innerText = `${res.burnArea.toLocaleString()} px`;
     if (processedResults[seriesKey]) {
@@ -1669,7 +1987,21 @@ async function renderPreview() {
 
 document.getElementById('btnProcess').addEventListener('click', async () => {
     const dict = i18n[currentLang];
+
+    let totalFiles = 0;
+    filesMap.forEach(arr => totalFiles += arr.length);
+    if (totalFiles === 0) return;
+
     statusBadge.innerText = dict.processing;
+
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBarFill = document.getElementById('progressBarFill');
+    const progressBarLabel = document.getElementById('progressBarLabel');
+
+    progressContainer.style.display = 'block';
+    progressBarFill.style.width = '0%';
+
+    let processedCount = 0;
 
     const cropMargin = parseInt(document.getElementById('cropMarginSlider').value);
     const textureFilter = document.getElementById('textureSelect').value;
@@ -1692,6 +2024,13 @@ document.getElementById('btnProcess').addEventListener('click', async () => {
             const closure = initialArea > 0 ? Math.max(0, (1 - (res.burnArea / initialArea)) * 100) : 0;
 
             seriesData.push({ hours: items[i].hours, area: res.burnArea, closure: closure, rate: 0 });
+
+            processedCount++;
+            const percent = Math.round((processedCount / totalFiles) * 100);
+            progressBarFill.style.width = `${percent}%`;
+            progressBarLabel.innerText = currentLang === 'he' ?
+                `מעבד: ${percent}% (${processedCount}/${totalFiles})` :
+                `Processing: ${percent}% (${processedCount}/${totalFiles})`;
         }
 
         for (let i = 1; i < seriesData.length; i++) {
@@ -1706,6 +2045,10 @@ document.getElementById('btnProcess').addEventListener('click', async () => {
     renderCharts();
     renderPreview();
     statusBadge.innerText = dict.done;
+
+    setTimeout(() => {
+        progressContainer.style.display = 'none';
+    }, 1500);
 });
 
 function renderCharts() {
