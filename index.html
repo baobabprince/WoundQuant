@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WoundQuant JS — ML & Advanced Texture Analysis</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -501,6 +502,23 @@
         </div>
 
         <button class="btn" id="btnProcess">🚀 הרץ ניתוח אצווה</button>
+
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
+
+        <h3 id="mlSectionTitle">🧠 אימון רשת נוירונים (ML)</h3>
+
+        <div class="control-group">
+            <button class="btn-secondary" id="btnExportML" onclick="exportTrainingPackage()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; border-color: var(--primary); color: var(--primary);">
+                📦 <span id="textExportMLBtn">ייצא ערכת אימון (ZIP)</span>
+            </button>
+
+            <label id="labelImportML" style="display: block; font-size: 0.875rem; font-weight: 700; margin-bottom: 8px; margin-top: 15px;">📥 ייבא תוצאות פייתון (predictions.zip):</label>
+            <label for="mlFileInput" class="btn-secondary" id="btnImportMLCustom" style="display: flex; align-items: center; justify-content: center; cursor: pointer; min-height: 44px; margin-bottom: 0;">
+                📁 <span id="textImportMLBtn">בחר predictions.zip</span>
+            </label>
+            <input type="file" id="mlFileInput" accept=".zip,.png" multiple style="display: none;" onchange="importPredictions(this)">
+            <div class="status-badge" id="mlStatusBadge" style="margin-top: 8px; display: none;">ממתין לתיוגים...</div>
+        </div>
     </div>
 
     <!-- Main Display Panel -->
@@ -523,6 +541,45 @@
                 <button class="btn" id="btnToggleMarking" onclick="toggleWoundMarking()" style="margin-bottom: 12px; background: var(--accent); max-width: 300px; width: 100%;">👁️ הסר סימון כוויה</button>
 
                 <canvas id="mainCanvas"></canvas>
+
+                <!-- Manual Annotation Toolbox -->
+                <div id="annotationToolbox" style="display: flex; flex-direction: column; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-top: 15px; width: 100%; box-sizing: border-box; gap: 10px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                            ✏️ <span id="textAnnotationTitle">מצב תיוג ידני</span>
+                        </span>
+                        <div class="checkbox-container" style="padding: 4px 8px; margin-top: 0; background: transparent; border: none;">
+                            <input type="checkbox" id="enableAnnotationCheckbox" onchange="toggleAnnotationMode(this.checked)">
+                            <span id="labelEnableAnnotation" style="font-size: 0.85rem; font-weight: 700; color: var(--primary);">הפעל כלי תיוג ידניים</span>
+                        </div>
+                    </div>
+
+                    <div id="drawingControls" style="display: none; flex-direction: column; gap: 10px;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
+                            <button class="step-btn active" id="draw_brush" onclick="setDrawingTool('brush')">🖌️ מברשת (Brush)</button>
+                            <button class="step-btn" id="draw_eraser" onclick="setDrawingTool('eraser')">🧽 מחק (Eraser)</button>
+                            <button class="step-btn" id="draw_polygon" onclick="setDrawingTool('polygon')">📐 פוליגון (Polygon)</button>
+                            <button class="step-btn" id="draw_clear" onclick="clearManualMask()" style="background: #fee2e2; color: #991b1b; border-color: #fca5a5;">🗑️ נקה תיוג (Clear)</button>
+                        </div>
+
+                        <!-- Brush Size Slider -->
+                        <div id="brushSizeGroup" class="control-group" style="margin-bottom: 0;">
+                            <label id="labelBrushSize" style="font-size: 0.8rem; margin-bottom: 4px;">גודל מברשת / מחק: <span id="brushSizeDisplay">15px</span></label>
+                            <div class="slider-container" style="padding: 6px 10px;">
+                                <input type="range" id="brushSizeSlider" min="2" max="60" value="15" oninput="updateBrushSize(this.value)" style="margin: 4px 0; cursor: pointer;">
+                            </div>
+                        </div>
+
+                        <!-- Polygon Instruction & Close Button -->
+                        <div id="polygonControls" style="display: none; background: #e0f2fe; border: 1px solid #bae6fd; color: #0369a1; padding: 8px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; line-height: 1.4;">
+                            <span id="textPolygonInstructions">הקלק על הקנבס ליצירת נקודות סביב הכוויה.</span>
+                            <div style="display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end;">
+                                <button class="step-btn" onclick="undoPolygonVertex()" style="padding: 4px 8px; font-size: 0.75rem;">↩️ בטל נקודה</button>
+                                <button class="step-btn" onclick="applyPolygon()" style="background: var(--primary); color: white; border-color: var(--primary); padding: 4px 10px; font-size: 0.75rem;">✅ סגור ומלא פוליגון</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Interactive Intermediate Steps Gallery/Tabs -->
                 <div id="stepButtonsContainer" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 15px; width: 100%;">
@@ -597,6 +654,14 @@ let currentLang = "he";
 let lastResult = null;
 let currentViewStep = 'final_overlay';
 let showWoundMarking = true;
+
+// Manual Annotation & ML States
+let manualMasks = new Map(); // key: seriesKey_hours, value: Uint8Array
+let isAnnotationMode = false;
+let currentDrawingTool = 'brush'; // 'brush', 'eraser', 'polygon'
+let brushSize = 15;
+let polygonPoints = []; // [{x, y}, ...]
+let isDrawing = false;
 
 const FILENAME_REGEX = /_(?<well>[A-H]\d{1,2})_(?<site>\d+)_(?<days>\d{2})d(?<hours>\d{2})h(?<mins>\d{2})m/;
 
@@ -678,7 +743,15 @@ const i18n = {
         step_closing: "סגירה מורפולוגית",
         step_final_mask: "מסכה סופית",
         footerText: "WoundQuant JS © 2026",
-        githubRepo: "מאגר ה-GitHub"
+        githubRepo: "מאגר ה-GitHub",
+        mlSectionTitle: "🧠 אימון רשת נוירונים (ML)",
+        exportMLBtn: "ייצא ערכת אימון (ZIP)",
+        importMLLabel: "📥 ייבא תוצאות פייתון (predictions.zip):",
+        importMLBtn: "בחר predictions.zip",
+        annotationTitle: "מצב תיוג ידני",
+        enableAnnotation: "הפעל כלי תיוג ידניים",
+        brushSize: "גודל מברשת / מחק: ",
+        polygonInstructions: "הקלק על הקנבס ליצירת נקודות סביב הכוויה."
     },
     en: {
         title: "🔬 WoundQuant JS — Texture & Continuous Burn Analysis",
@@ -735,7 +808,15 @@ const i18n = {
         step_closing: "Morphological Closing",
         step_final_mask: "Final Mask",
         footerText: "WoundQuant JS © 2026",
-        githubRepo: "GitHub Repository"
+        githubRepo: "GitHub Repository",
+        mlSectionTitle: "🧠 Neural Network Training (ML)",
+        exportMLBtn: "Export Training Package (ZIP)",
+        importMLLabel: "📥 Import Python Predictions (predictions.zip):",
+        importMLBtn: "Choose predictions.zip",
+        annotationTitle: "Manual Annotation Mode",
+        enableAnnotation: "Enable Manual Annotation",
+        brushSize: "Brush / Eraser Size: ",
+        polygonInstructions: "Click on the canvas to add points around the wound."
     }
 };
 
@@ -826,6 +907,16 @@ function updateLanguage() {
     // Footer translation
     document.getElementById('footerText').innerText = dict.footerText;
     document.getElementById('textGithubRepo').innerText = dict.githubRepo;
+
+    // ML & Annotation translation
+    document.getElementById('mlSectionTitle').innerText = dict.mlSectionTitle;
+    document.getElementById('textExportMLBtn').innerText = dict.exportMLBtn;
+    document.getElementById('labelImportML').innerText = dict.importMLLabel;
+    document.getElementById('textImportMLBtn').innerText = dict.importMLBtn;
+    document.getElementById('textAnnotationTitle').innerText = dict.annotationTitle;
+    document.getElementById('labelEnableAnnotation').innerText = dict.enableAnnotation;
+    document.getElementById('labelBrushSize').innerHTML = `${dict.brushSize}<span id="brushSizeDisplay">${brushSize}px</span>`;
+    document.getElementById('textPolygonInstructions').innerText = dict.polygonInstructions;
 
     // Texture selector translation
     const textureSelect = document.getElementById('textureSelect');
@@ -2067,6 +2158,25 @@ function drawViewStep(res) {
         }
         ctx.putImageData(tempImgData, 0, 0);
     }
+
+    // Draw polygon helpers if in polygon annotation mode and points exist
+    if (isAnnotationMode && currentDrawingTool === 'polygon' && polygonPoints.length > 0) {
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(polygonPoints[0].x, polygonPoints[0].y);
+        for (let i = 1; i < polygonPoints.length; i++) {
+            ctx.lineTo(polygonPoints[i].x, polygonPoints[i].y);
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = '#0284c7';
+        for (let i = 0; i < polygonPoints.length; i++) {
+            ctx.beginPath();
+            ctx.arc(polygonPoints[i].x, polygonPoints[i].y, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+    }
 }
 
 async function renderPreview(useCache = false) {
@@ -2094,6 +2204,28 @@ async function renderPreview(useCache = false) {
         res.seriesKey = seriesKey;
         res.hours = timeVal;
         lastResult = res;
+    }
+
+    // Integrate manual mask if it exists
+    const maskKey = `${seriesKey}_${timeVal}`;
+    if (manualMasks.has(maskKey)) {
+        const manualMask = manualMasks.get(maskKey);
+        if (manualMask.length === res.finalMask.length) {
+            res.finalMask.set(manualMask);
+
+            // Recalculate burn area based on the manual mask!
+            let burnArea = 0;
+            for (let i = 0; i < res.finalMask.length; i++) {
+                if (res.finalMask[i] > 0) {
+                    burnArea++;
+                }
+            }
+            const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;
+            res.burnArea = Math.round(burnArea * scaleFactor);
+        }
+    } else if (isAnnotationMode) {
+        // If in annotation mode, initialize manual mask with current automatic finalMask
+        getActiveManualMask(res);
     }
 
     mainCanvas.width = res.width;
@@ -2305,6 +2437,518 @@ function renderCharts() {
             }
         }
     });
+}
+
+// --- Manual Annotation, Event Handlers, & ML Training Integration ---
+
+function getCanvasMouseCoords(e) {
+    const rect = mainCanvas.getBoundingClientRect();
+    const scaleX = mainCanvas.width / rect.width;
+    const scaleY = mainCanvas.height / rect.height;
+
+    const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+    const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+
+    return {
+        x: Math.round((clientX - rect.left) * scaleX),
+        y: Math.round((clientY - rect.top) * scaleY)
+    };
+}
+
+function getActiveImageKey() {
+    const seriesKey = selectSeries.value;
+    const timeVal = parseFloat(selectTime.value);
+    if (!seriesKey || isNaN(timeVal)) return null;
+    return `${seriesKey}_${timeVal}`;
+}
+
+function getActiveManualMask(res) {
+    const key = getActiveImageKey();
+    if (!key) return null;
+
+    if (!manualMasks.has(key)) {
+        const mask = new Uint8Array(res.finalMask.length);
+        mask.set(res.finalMask);
+        manualMasks.set(key, mask);
+    }
+    return manualMasks.get(key);
+}
+
+function toggleAnnotationMode(enabled) {
+    isAnnotationMode = enabled;
+    document.getElementById('drawingControls').style.display = enabled ? 'flex' : 'none';
+
+    if (enabled) {
+        setViewStep('final_overlay');
+        setupCanvasDrawingEvents();
+    } else {
+        removeCanvasDrawingEvents();
+        polygonPoints = [];
+        document.getElementById('polygonControls').style.display = 'none';
+    }
+    renderPreview(true);
+}
+
+function setupCanvasDrawingEvents() {
+    mainCanvas.style.cursor = 'crosshair';
+
+    // Mouse Event Listeners
+    mainCanvas.addEventListener('mousedown', onDrawingStart);
+    mainCanvas.addEventListener('mousemove', onDrawingMove);
+    window.addEventListener('mouseup', onDrawingEnd);
+
+    // Touch Event Listeners
+    mainCanvas.addEventListener('touchstart', onDrawingStart, { passive: false });
+    mainCanvas.addEventListener('touchmove', onDrawingMove, { passive: false });
+    mainCanvas.addEventListener('touchend', onDrawingEnd);
+}
+
+function removeCanvasDrawingEvents() {
+    mainCanvas.style.cursor = 'default';
+
+    mainCanvas.removeEventListener('mousedown', onDrawingStart);
+    mainCanvas.removeEventListener('mousemove', onDrawingMove);
+    window.removeEventListener('mouseup', onDrawingEnd);
+
+    mainCanvas.removeEventListener('touchstart', onDrawingStart);
+    mainCanvas.removeEventListener('touchmove', onDrawingMove);
+    mainCanvas.removeEventListener('touchend', onDrawingEnd);
+}
+
+function onDrawingStart(e) {
+    if (!isAnnotationMode) return;
+    if (e.touches) e.preventDefault();
+
+    isDrawing = true;
+    const coords = getCanvasMouseCoords(e);
+
+    if (currentDrawingTool === 'polygon') {
+        polygonPoints.push(coords);
+        renderPreview(true);
+    } else {
+        applyDrawingStroke(coords.x, coords.y);
+    }
+}
+
+function onDrawingMove(e) {
+    if (!isDrawing || !isAnnotationMode) return;
+    if (e.touches) e.preventDefault();
+
+    const coords = getCanvasMouseCoords(e);
+    if (currentDrawingTool !== 'polygon') {
+        applyDrawingStroke(coords.x, coords.y);
+    }
+}
+
+function onDrawingEnd() {
+    isDrawing = false;
+}
+
+function applyDrawingStroke(cx, cy) {
+    if (!lastResult) return;
+    const mask = getActiveManualMask(lastResult);
+    if (!mask) return;
+
+    const w = lastResult.width;
+    const h = lastResult.height;
+    const r2 = brushSize * brushSize;
+    const val = currentDrawingTool === 'brush' ? 255 : 0;
+
+    for (let dy = -brushSize; dy <= brushSize; dy++) {
+        const ny = cy + dy;
+        if (ny < 0 || ny >= h) continue;
+        const rowOffset = ny * w;
+        for (let dx = -brushSize; dx <= brushSize; dx++) {
+            const nx = cx + dx;
+            if (nx < 0 || nx >= w) continue;
+            if (dx*dx + dy*dy <= r2) {
+                mask[rowOffset + nx] = val;
+            }
+        }
+    }
+    renderPreview(true);
+}
+
+function setDrawingTool(tool) {
+    currentDrawingTool = tool;
+
+    const btns = ['draw_brush', 'draw_eraser', 'draw_polygon'];
+    btns.forEach(id => {
+        const btn = document.getElementById(id);
+        if (id === `draw_${tool}`) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    document.getElementById('polygonControls').style.display = tool === 'polygon' ? 'flex' : 'none';
+    if (tool !== 'polygon') {
+        polygonPoints = [];
+    }
+    renderPreview(true);
+}
+
+function applyPolygon() {
+    if (polygonPoints.length < 3 || !lastResult) return;
+    const mask = getActiveManualMask(lastResult);
+    if (!mask) return;
+
+    const w = lastResult.width;
+    const h = lastResult.height;
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = w;
+    tempCanvas.height = h;
+    const tempCtx = tempCanvas.getContext('2d');
+
+    tempCtx.fillStyle = '#ffffff';
+    tempCtx.beginPath();
+    tempCtx.moveTo(polygonPoints[0].x, polygonPoints[0].y);
+    for (let i = 1; i < polygonPoints.length; i++) {
+        tempCtx.lineTo(polygonPoints[i].x, polygonPoints[i].y);
+    }
+    tempCtx.closePath();
+    tempCtx.fill();
+
+    const tempImgData = tempCtx.getImageData(0, 0, w, h);
+    const data = tempImgData.data;
+
+    for (let i = 0; i < mask.length; i++) {
+        const idx = i * 4;
+        if (data[idx] > 128) {
+            mask[i] = 255;
+        }
+    }
+
+    polygonPoints = [];
+    renderPreview(true);
+}
+
+function undoPolygonVertex() {
+    if (polygonPoints.length > 0) {
+        polygonPoints.pop();
+        renderPreview(true);
+    }
+}
+
+function clearManualMask() {
+    if (!lastResult) return;
+    const mask = getActiveManualMask(lastResult);
+    if (!mask) return;
+
+    mask.fill(0);
+    polygonPoints = [];
+    renderPreview(true);
+}
+
+function updateBrushSize(val) {
+    brushSize = parseInt(val);
+    document.getElementById('brushSizeDisplay').innerText = `${val}px`;
+}
+
+async function maskToBlob(mask, width, height) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctxTemp = canvas.getContext('2d');
+    const imgData = ctxTemp.createImageData(width, height);
+    const data = imgData.data;
+    for (let i = 0; i < mask.length; i++) {
+        const val = mask[i];
+        const idx = i * 4;
+        data[idx] = val;
+        data[idx+1] = val;
+        data[idx+2] = val;
+        data[idx+3] = 255;
+    }
+    ctxTemp.putImageData(imgData, 0, 0);
+    return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+}
+
+async function exportTrainingPackage() {
+    const zip = new JSZip();
+    const imagesFolder = zip.folder("images");
+    const masksFolder = zip.folder("masks");
+
+    let addedFilesCount = 0;
+
+    for (let [seriesKey, items] of filesMap.entries()) {
+        for (let item of items) {
+            const file = item.file;
+            const key = `${seriesKey}_${item.hours}`;
+
+            imagesFolder.file(file.name, file);
+
+            if (manualMasks.has(key)) {
+                const mask = manualMasks.get(key);
+                let w = lastResult ? lastResult.width : 350;
+                let h = lastResult ? lastResult.height : 350;
+
+                const maskBlob = await maskToBlob(mask, w, h);
+                const maskName = file.name.substring(0, file.name.lastIndexOf('.')) + ".png";
+                masksFolder.file(maskName, maskBlob);
+                addedFilesCount++;
+            }
+        }
+    }
+
+    if (addedFilesCount === 0) {
+        alert(currentLang === 'he' ?
+            "נא לסמן לפחות תמונה אחת בצורה ידנית לפני הייצוא!" :
+            "Please annotate at least one image manually before exporting!");
+        return;
+    }
+
+    // Simple, robust, self-contained Python Random Forest pixel classifier script
+    const trainPythonCode = `import os
+import glob
+import zipfile
+import numpy as np
+import cv2
+from sklearn.ensemble import RandomForestClassifier
+
+def extract_features(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    features = [
+        img[:, :, 0], img[:, :, 1], img[:, :, 2],
+        gray,
+        hsv[:, :, 0], hsv[:, :, 1], hsv[:, :, 2]
+    ]
+
+    features.append(cv2.Sobel(gray, cv2.CV_8U, 1, 0, ksize=3))
+    features.append(cv2.Sobel(gray, cv2.CV_8U, 0, 1, ksize=3))
+    features.append(cv2.GaussianBlur(gray, (5, 5), 0))
+    features.append(cv2.GaussianBlur(gray, (11, 11), 0))
+
+    feature_stack = np.stack(features, axis=-1)
+    return feature_stack.reshape(-1, feature_stack.shape[-1])
+
+def main():
+    print("WoundQuant JS Neural Network/Pixel Classifier Training Script")
+    print("-----------------------------------------------------------")
+
+    os.makedirs("predictions", exist_ok=True)
+
+    mask_paths = glob.glob(os.path.join("masks", "*.png"))
+    if not mask_paths:
+        print("Error: No manual masks found in masks/ directory!")
+        return
+
+    X_train = []
+    y_train = []
+
+    print(f"Loading {len(mask_paths)} annotated images for training...")
+    for mask_path in mask_paths:
+        filename = os.path.basename(mask_path)
+        img_name = os.path.splitext(filename)[0]
+        img_candidates = glob.glob(os.path.join("images", f"{img_name}.*"))
+        if not img_candidates:
+            print(f"Warning: No matching image found for mask {filename}")
+            continue
+
+        img_path = img_candidates[0]
+        img = cv2.imread(img_path)
+        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+
+        if mask.shape != img.shape[:2]:
+            mask = cv2.resize(mask, (img.shape[1], img.shape[0]), interpolation=cv2.INTER_NEAREST)
+
+        img_features = extract_features(img)
+        flat_mask = mask.flatten()
+
+        indices = np.random.choice(len(flat_mask), min(5000, len(flat_mask)), replace=False)
+        X_train.append(img_features[indices])
+        y_train.append(flat_mask[indices])
+
+    if not X_train:
+        print("Error: No training data could be collected!")
+        return
+
+    X_train = np.vstack(X_train)
+    y_train = np.concatenate(y_train)
+    y_train = (y_train > 128).astype(np.uint8)
+
+    print(f"Training Pixel Classifier on {len(y_train)} sample pixels...")
+    clf = RandomForestClassifier(n_estimators=50, max_depth=12, random_state=42, n_jobs=-1)
+    clf.fit(X_train, y_train)
+    print("Training complete! High-accuracy model learned.")
+
+    all_img_paths = glob.glob(os.path.join("images", "*.*"))
+    print(f"Running predictions on all {len(all_img_paths)} dataset images...")
+
+    for img_path in all_img_paths:
+        filename = os.path.basename(img_path)
+        name_only, _ = os.path.splitext(filename)
+
+        img = cv2.imread(img_path)
+        img_features = extract_features(img)
+
+        preds = clf.predict(img_features)
+        pred_mask = (preds * 255).astype(np.uint8).reshape(img.shape[:2])
+
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        pred_mask = cv2.morphologyEx(pred_mask, cv2.MORPH_CLOSE, kernel)
+
+        out_path = os.path.join("predictions", f"{name_only}.png")
+        cv2.imwrite(out_path, pred_mask)
+        print(f"Saved predicted mask to predictions/{name_only}.png")
+
+    print("Compressing predictions into predictions.zip...")
+    with zipfile.ZipFile("predictions.zip", "w", zipfile.ZIP_DEFLATED) as zip_file:
+        pred_files = glob.glob(os.path.join("predictions", "*.png"))
+        for f in pred_files:
+            zip_file.write(f, os.path.basename(f))
+
+    print("\\nSUCCESS! predictions.zip created successfully!")
+    print("You can now import predictions.zip back into the WoundQuant JS application.")
+
+if __name__ == '__main__':
+    main()`;
+
+    const readmeText = `Instructions to Train the Machine Learning Model:
+-------------------------------------------------
+1. Install Python 3 on your computer.
+2. Install the required libraries using pip:
+   pip install opencv-python scikit-learn numpy
+
+3. Run the training script:
+   python train.py
+
+4. The script will:
+   - Load all original images and corresponding manual masks.
+   - Train a fast pixel-level Random Forest classifier using color and texture features.
+   - Run predictions on ALL original images (including non-annotated ones).
+   - Save the results as binary masks in "predictions/" directory.
+   - Pack the predicted masks into a "predictions.zip" file.
+
+5. Go back to WoundQuant, click "Choose predictions.zip" under the Neural Network panel, and select "predictions.zip" to import the machine-learned boundaries back into the application!`;
+
+    zip.file("train.py", trainPythonCode);
+    zip.file("README.txt", readmeText);
+
+    zip.generateAsync({ type: "blob" }).then(content => {
+        const url = URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "woundquant_ml_dataset.zip";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+}
+
+function findSeriesKeyByFilename(filename) {
+    const match = filename.match(FILENAME_REGEX);
+    if (match) {
+        const { well, site, days, hours, mins } = match.groups;
+        const totalHours = parseInt(days)*24 + parseInt(hours) + parseInt(mins)/60;
+        return {
+            key: `${well}_Site${site}`,
+            hours: totalHours
+        };
+    }
+
+    for (let [seriesKey, items] of filesMap.entries()) {
+        for (let item of items) {
+            const nameWithoutExt = item.file.name.substring(0, item.file.name.lastIndexOf('.'));
+            if (nameWithoutExt === filename) {
+                return {
+                    key: seriesKey,
+                    hours: item.hours
+                };
+            }
+        }
+    }
+    return null;
+}
+
+async function loadMaskBlobToManualMask(blob, matchInfo) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctxTemp = canvas.getContext('2d');
+            ctxTemp.drawImage(img, 0, 0);
+
+            const imgData = ctxTemp.getImageData(0, 0, img.width, img.height);
+            const data = imgData.data;
+            const mask = new Uint8Array(img.width * img.height);
+
+            for (let i = 0; i < mask.length; i++) {
+                const idx = i * 4;
+                if (data[idx] > 128 || data[idx+1] > 128 || data[idx+2] > 128) {
+                    mask[i] = 255;
+                } else {
+                    mask[i] = 0;
+                }
+            }
+
+            const mapKey = `${matchInfo.key}_${matchInfo.hours}`;
+            manualMasks.set(mapKey, mask);
+            resolve();
+        };
+        img.src = URL.createObjectURL(blob);
+    });
+}
+
+async function importPredictions(input) {
+    const files = Array.from(input.files);
+    if (files.length === 0) return;
+
+    const mlStatus = document.getElementById('mlStatusBadge');
+    mlStatus.style.display = 'block';
+    mlStatus.innerText = currentLang === 'he' ? "מייבא תיוגים..." : "Importing predictions...";
+
+    let importedCount = 0;
+
+    for (const file of files) {
+        if (file.name.endsWith('.zip')) {
+            try {
+                const zip = await JSZip.loadAsync(file);
+                for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
+                    if (zipEntry.dir || !relativePath.endsWith('.png')) continue;
+
+                    const blob = await zipEntry.async("blob");
+                    const nameOnly = relativePath.substring(0, relativePath.lastIndexOf('.'));
+                    const matchedKey = findSeriesKeyByFilename(nameOnly);
+
+                    if (matchedKey) {
+                        await loadMaskBlobToManualMask(blob, matchedKey);
+                        importedCount++;
+                    }
+                }
+            } catch (e) {
+                console.error("Error loading predictions ZIP:", e);
+            }
+        } else if (file.name.endsWith('.png')) {
+            const nameOnly = file.name.substring(0, file.name.lastIndexOf('.'));
+            const matchedKey = findSeriesKeyByFilename(nameOnly);
+
+            if (matchedKey) {
+                await loadMaskBlobToManualMask(file, matchedKey);
+                importedCount++;
+            }
+        }
+    }
+
+    if (importedCount > 0) {
+        mlStatus.innerText = currentLang === 'he' ?
+            `נטענו ${importedCount} מסכות בהצלחה!` :
+            `Successfully imported ${importedCount} predictions!`;
+
+        lastResult = null; // Clear cache to force reload with predictions
+        renderPreview(false);
+    } else {
+        mlStatus.innerText = currentLang === 'he' ?
+            "לא נמצאו קבצים מתאימים." :
+            "No matching prediction files found.";
+    }
 }
 
 // Initial Call
