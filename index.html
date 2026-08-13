@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WoundQuant JS — ML & Examples</title>
+    <title>WoundQuant JS — ML & Advanced Texture Analysis</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -67,7 +67,7 @@
 
         .container {
             display: grid;
-            grid-template-columns: 360px 1fr;
+            grid-template-columns: 380px 1fr;
             gap: 20px;
             max-width: 1600px;
             margin: 0 auto;
@@ -253,6 +253,26 @@
             font-weight: 600;
             color: #475569;
             border: 1px solid #cbd5e1;
+            word-break: break-all;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin-top: 5px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .checkbox-container input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
         }
 
         /* Media Queries for Mobile Responsiveness */
@@ -303,7 +323,7 @@
 <body>
 
 <div class="header-section">
-    <h1 id="pageTitle">🔬 WoundQuant JS — ניתוח כוויה בלמידת מכונה (ML & Examples)</h1>
+    <h1 id="pageTitle">🔬 WoundQuant JS — ניתוח טקסטורה ואזור כוויה רציף</h1>
     <button class="lang-btn" id="langToggle" onclick="toggleLanguage()">🌐 English</button>
 </div>
 
@@ -319,15 +339,52 @@
 
         <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
 
-        <h3 id="aiTitle">🤖 מצב ניתוח AI / ML</h3>
-        
+        <h3 id="aiTitle">🤖 הגדרות ניתוח מתקדמות</h3>
+
+        <!-- Dynamic Well Mask Margin Control -->
         <div class="control-group">
-            <label id="labelMethod">שיטת סגמנטציה:</label>
+            <label id="labelCropMargin">שולי בארית (Well Crop Margin):</label>
+            <div class="slider-container">
+                <input type="range" id="cropMarginSlider" min="1" max="40" value="15" oninput="updateCropMarginDisplay(this.value)">
+                <div class="slider-val-display">
+                    <span>1px</span>
+                    <span id="cropMarginValDisplay">15px</span>
+                    <span>40px</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Texture Filter Select -->
+        <div class="control-group">
+            <label id="labelTexture">ניתוח טקסטורה (Texture Filter):</label>
+            <select id="textureSelect" onchange="toggleTextureControls()">
+                <option value="none">ללא (None - Raw Grayscale)</option>
+                <option value="entropy" selected>אנטרופיה מקומית (Local Entropy)</option>
+                <option value="variance">שונות מקומית (Local Variance)</option>
+            </select>
+        </div>
+
+        <!-- Texture Filter Radius -->
+        <div id="textureRadiusGroup" class="control-group">
+            <label id="labelTextureRadius">רדיוס מנתח טקסטורה (Texture Radius):</label>
+            <div class="slider-container">
+                <input type="range" id="textureRadiusSlider" min="1" max="15" value="4" oninput="updateTextureRadiusDisplay(this.value)">
+                <div class="slider-val-display">
+                    <span>1px</span>
+                    <span id="textureRadiusValDisplay">4px</span>
+                    <span>15px</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Segmentation Thresholding Method -->
+        <div class="control-group">
+            <label id="labelMethod">שיטת סגמנטציה (Thresholding):</label>
             <select id="methodSelect" onchange="toggleManualSlider()">
+                <option value="otsu" selected>סף Otsu (אוטומטי)</option>
                 <option value="kmeans">k-Means Clustering (אוטומטי)</option>
-                <option value="otsu">סף Otsu (אוטומטי)</option>
                 <option value="adaptive">סף אדפטיבי (Bradley-Roth)</option>
-                <option value="manual">סף בהירות ידני</option>
+                <option value="manual">סף ידני</option>
             </select>
         </div>
 
@@ -341,6 +398,48 @@
                     <span id="sliderValDisplay">100</span>
                     <span>255</span>
                 </div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <div class="checkbox-container">
+                <input type="checkbox" id="invertThreshCheckbox" checked onchange="renderPreview()">
+                <span id="labelInvertThresh">הפוך תוצאת סגמנטציה (Invert)</span>
+            </div>
+        </div>
+
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
+
+        <h3 id="continuityTitle">🔗 אלגוריתם זיהוי אזור רציף</h3>
+
+        <!-- Post Processing Method Selection -->
+        <div class="control-group">
+            <label id="labelPostProcess">שיטת איתור אזור כוויה:</label>
+            <select id="postProcessSelect" onchange="renderPreview()">
+                <option value="largest" selected>הרכיב הקשיר הגדול ביותר בלבד</option>
+                <option value="watershed">אלגוריתם Watershed (קו פרשת המים)</option>
+                <option value="proximity">סינון רכיבים לפי גודל וקרבה</option>
+            </select>
+        </div>
+
+        <!-- Morphological Closing Slider -->
+        <div class="control-group">
+            <label id="labelClosing">סגירה מורפולוגית (Morphological Closing):</label>
+            <div class="slider-container">
+                <input type="range" id="closingRadiusSlider" min="0" max="25" value="8" oninput="updateClosingRadiusDisplay(this.value)">
+                <div class="slider-val-display">
+                    <span id="labelClosingDisabled">כבוי</span>
+                    <span id="closingRadiusValDisplay">8px</span>
+                    <span>25px</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Convex Hull Checkbox -->
+        <div class="control-group">
+            <div class="checkbox-container">
+                <input type="checkbox" id="convexHullCheckbox" checked onchange="renderPreview()">
+                <span id="labelConvexHull">כפה מעטפת קמורה (Convex Hull)</span>
             </div>
         </div>
 
@@ -410,12 +509,21 @@ const FILENAME_REGEX = /_(?<well>[A-H]\d{1,2})_(?<site>\d+)_(?<days>\d{2})d(?<ho
 
 const i18n = {
     he: {
-        title: "🔬 WoundQuant JS — ניתוח כוויה בלמידת מכונה (ML & Examples)",
+        title: "🔬 WoundQuant JS — ניתוח טקסטורה ואזור כוויה רציף",
         uploadLabel: "📁 העלאת תמונות או קבצי דוגמה",
         loadExamples: "📂 טען קבצים מתיקיית examples",
         waitingFiles: "ממתין לקבצים...",
-        aiTitle: "🤖 מצב ניתוח AI / ML",
-        methodLabel: "שיטת סגמנטציה:",
+        aiTitle: "🤖 הגדרות ניתוח מתקדמות",
+        cropMarginLabel: "שולי בארית (Well Crop Margin):",
+        textureLabel: "ניתוח טקסטורה (Texture Filter):",
+        textureRadiusLabel: "רדיוס מנתח טקסטורה (Texture Radius):",
+        methodLabel: "שיטת סגמנטציה (Thresholding):",
+        invertThreshLabel: "הפוך תוצאת סגמנטציה (Invert)",
+        continuityTitle: "🔗 אלגוריתם זיהוי אזור רציף",
+        postProcessLabel: "שיטת איתור אזור כוויה:",
+        closingLabel: "סגירה מורפולוגית (Morphological Closing):",
+        closingDisabled: "כבוי",
+        convexHullLabel: "כפה מעטפת קמורה (Convex Hull)",
         runBatch: "🚀 הרץ ניתוח אצווה",
         seriesLabel: "סדרה נבחרת (Well / Site):",
         timeLabel: "נקודת זמן לבדיקה (שעות):",
@@ -427,22 +535,37 @@ const i18n = {
         kmeans: "k-Means Clustering (אוטומטי)",
         otsu: "סף Otsu (אוטומטי)",
         adaptive: "סף אדפטיבי (Bradley-Roth)",
-        manual: "סף בהירות ידני",
+        manual: "סף ידני",
         sliderLabel: "סף ידני (ערך):",
         loadingExamples: "טוען קבצים מ-examples...",
         loadedExamples: (count) => `נטענו ${count} קבצי דוגמה!`,
         noExamples: "לא נמצאו קבצים ב-examples/",
         loadedManual: (count) => `נטענו ${count} קבצים!`,
         processing: "מעבד...",
-        done: "העיבוד הושלם!"
+        done: "העיבוד הושלם!",
+        noneTexture: "ללא (None - Raw Grayscale)",
+        entropyTexture: "אנטרופיה מקומית (Local Entropy)",
+        varianceTexture: "שונות מקומית (Local Variance)",
+        largestComp: "הרכיב הקשיר הגדול ביותר בלבד",
+        watershedComp: "אלגוריתם Watershed (קו פרשת המים)",
+        proximityComp: "סינון רכיבים לפי גודל וקרבה"
     },
     en: {
-        title: "🔬 WoundQuant JS — Burn Wound Analysis (ML & Examples)",
+        title: "🔬 WoundQuant JS — Texture & Continuous Burn Analysis",
         uploadLabel: "📁 Upload Images or Example Files",
         loadExamples: "📂 Load Files from examples folder",
         waitingFiles: "Waiting for files...",
-        aiTitle: "🤖 AI / ML Analysis Mode",
-        methodLabel: "Segmentation Method:",
+        aiTitle: "🤖 Advanced Analysis Options",
+        cropMarginLabel: "Well Crop Margin:",
+        textureLabel: "Texture Filter:",
+        textureRadiusLabel: "Texture Radius:",
+        methodLabel: "Segmentation Method (Thresholding):",
+        invertThreshLabel: "Invert Segmentation Result",
+        continuityTitle: "🔗 Continuous Burn Area Detection",
+        postProcessLabel: "Burn Detection Method:",
+        closingLabel: "Morphological Closing:",
+        closingDisabled: "Off",
+        convexHullLabel: "Convex Hull Image Integration",
         runBatch: "🚀 Run Batch Analysis",
         seriesLabel: "Selected Series (Well / Site):",
         timeLabel: "Inspection Timepoint (Hours):",
@@ -454,14 +577,20 @@ const i18n = {
         kmeans: "k-Means Clustering (Auto)",
         otsu: "Otsu's Threshold (Auto)",
         adaptive: "Adaptive Threshold (Bradley-Roth)",
-        manual: "Manual Intensity Threshold",
+        manual: "Manual Threshold",
         sliderLabel: "Manual Threshold (Value):",
         loadingExamples: "Loading files from examples...",
         loadedExamples: (count) => `Loaded ${count} example files!`,
         noExamples: "No files found in examples/",
         loadedManual: (count) => `Loaded ${count} files!`,
         processing: "Processing...",
-        done: "Processing complete!"
+        done: "Processing complete!",
+        noneTexture: "None (Raw Grayscale)",
+        entropyTexture: "Local Entropy Filter",
+        varianceTexture: "Local Variance Filter",
+        largestComp: "Largest Connected Component Only",
+        watershedComp: "Watershed Algorithm (קו פרשת המים)",
+        proximityComp: "Filter Components by Proximity & Size"
     }
 };
 
@@ -503,7 +632,16 @@ function updateLanguage() {
     }
 
     document.getElementById('aiTitle').innerText = dict.aiTitle;
+    document.getElementById('labelCropMargin').innerText = dict.cropMarginLabel;
+    document.getElementById('labelTexture').innerText = dict.textureLabel;
+    document.getElementById('labelTextureRadius').innerText = dict.textureRadiusLabel;
     document.getElementById('labelMethod').innerText = dict.methodLabel;
+    document.getElementById('labelInvertThresh').innerText = dict.invertThreshLabel;
+    document.getElementById('continuityTitle').innerText = dict.continuityTitle;
+    document.getElementById('labelPostProcess').innerText = dict.postProcessLabel;
+    document.getElementById('labelClosing').innerText = dict.closingLabel;
+    document.getElementById('labelClosingDisabled').innerText = dict.closingDisabled;
+    document.getElementById('labelConvexHull').innerText = dict.convexHullLabel;
     document.getElementById('btnProcess').innerText = dict.runBatch;
     document.getElementById('labelSeries').innerText = dict.seriesLabel;
     document.getElementById('labelTime').innerText = dict.timeLabel;
@@ -515,11 +653,24 @@ function updateLanguage() {
     document.getElementById('titleChartClosure').innerText = dict.chartClosureTitle;
     document.getElementById('titleChartRate').innerText = dict.chartRateTitle;
 
+    // Texture selector translation
+    const textureSelect = document.getElementById('textureSelect');
+    textureSelect.options[0].text = dict.noneTexture;
+    textureSelect.options[1].text = dict.entropyTexture;
+    textureSelect.options[2].text = dict.varianceTexture;
+
+    // Method options
     const methodSelect = document.getElementById('methodSelect');
-    methodSelect.options[0].text = dict.kmeans;
-    methodSelect.options[1].text = dict.otsu;
+    methodSelect.options[0].text = dict.otsu;
+    methodSelect.options[1].text = dict.kmeans;
     methodSelect.options[2].text = dict.adaptive;
     methodSelect.options[3].text = dict.manual;
+
+    // Post-processing options
+    const postProcessSelect = document.getElementById('postProcessSelect');
+    postProcessSelect.options[0].text = dict.largestComp;
+    postProcessSelect.options[1].text = dict.watershedComp;
+    postProcessSelect.options[2].text = dict.proximityComp;
 
     document.getElementById('labelSlider').innerText = dict.sliderLabel;
     document.getElementById('langToggle').innerText = currentLang === 'he' ? '🌐 English' : '🌐 עברית';
@@ -527,6 +678,27 @@ function updateLanguage() {
     if (chartClosureInst || chartRateInst) {
         renderCharts();
     }
+    renderPreview();
+}
+
+function toggleTextureControls() {
+    const val = document.getElementById('textureSelect').value;
+    const group = document.getElementById('textureRadiusGroup');
+    if (val === 'none') {
+        group.style.display = 'none';
+    } else {
+        group.style.display = 'block';
+    }
+    renderPreview();
+}
+
+function updateTextureRadiusDisplay(val) {
+    document.getElementById('textureRadiusValDisplay').innerText = `${val}px`;
+    renderPreview();
+}
+
+function updateCropMarginDisplay(val) {
+    document.getElementById('cropMarginValDisplay').innerText = `${val}px`;
     renderPreview();
 }
 
@@ -543,6 +715,11 @@ function toggleManualSlider() {
 
 function updateSliderVal(val) {
     document.getElementById('sliderValDisplay').innerText = val;
+    renderPreview();
+}
+
+function updateClosingRadiusDisplay(val) {
+    document.getElementById('closingRadiusValDisplay').innerText = `${val}px`;
     renderPreview();
 }
 
@@ -651,10 +828,133 @@ function updateTimeDropdown() {
     renderPreview();
 }
 
-// --- 2. Algorithms ---
+// --- 2. Advanced Algorithms ---
+
+// Shannon Entropy over local circular disk
+function computeLocalEntropy(gray, w, h, radius) {
+    const out = new Float32Array(w * h);
+    const r2 = radius * radius;
+
+    // Neighborhood offsets
+    const offsets = [];
+    for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+            if (dx*dx + dy*dy <= r2) {
+                offsets.push(dy * w + dx);
+            }
+        }
+    }
+    const numNeighbors = offsets.length;
+    const hist = new Int32Array(256);
+
+    for (let y = radius; y < h - radius; y++) {
+        const rowOffset = y * w;
+        for (let x = radius; x < w - radius; x++) {
+            const idx = rowOffset + x;
+            hist.fill(0);
+
+            for (let i = 0; i < numNeighbors; i++) {
+                hist[gray[idx + offsets[i]]]++;
+            }
+
+            let entropy = 0;
+            for (let g = 0; g < 256; g++) {
+                const c = hist[g];
+                if (c > 0) {
+                    const p = c / numNeighbors;
+                    entropy -= p * Math.log2(p);
+                }
+            }
+            out[idx] = entropy;
+        }
+    }
+
+    // Normalize to 0-255
+    let min = Infinity, max = -Infinity;
+    for (let i = 0; i < out.length; i++) {
+        if (out[i] < min) min = out[i];
+        if (out[i] > max) max = out[i];
+    }
+    const norm = new Uint8Array(w * h);
+    const range = max - min;
+    if (range > 0) {
+        for (let i = 0; i < out.length; i++) {
+            norm[i] = Math.round(((out[i] - min) / range) * 255);
+        }
+    }
+    return norm;
+}
+
+// Local Variance Filter (Using highly optimized Integral Images O(1) time per pixel!)
+function computeLocalVariance(gray, w, h, radius) {
+    const sum = new Uint32Array(w * h);
+    const sumSq = new Float64Array(w * h);
+
+    // Populate integral images
+    for (let y = 0; y < h; y++) {
+        let rowSum = 0;
+        let rowSumSq = 0;
+        const rowOffset = y * w;
+        const prevRowOffset = (y - 1) * w;
+        for (let x = 0; x < w; x++) {
+            const idx = rowOffset + x;
+            const val = gray[idx];
+            rowSum += val;
+            rowSumSq += val * val;
+
+            sum[idx] = (y > 0 ? sum[prevRowOffset + x] : 0) + rowSum;
+            sumSq[idx] = (y > 0 ? sumSq[prevRowOffset + x] : 0) + rowSumSq;
+        }
+    }
+
+    const out = new Uint8Array(w * h);
+    const norm = new Float32Array(w * h);
+
+    for (let y = 0; y < h; y++) {
+        const rowOffset = y * w;
+        for (let x = 0; x < w; x++) {
+            const idx = rowOffset + x;
+            const x1 = Math.max(0, x - radius);
+            const x2 = Math.min(w - 1, x + radius);
+            const y1 = Math.max(0, y - radius);
+            const y2 = Math.min(h - 1, y + radius);
+            const count = (x2 - x1 + 1) * (y2 - y1 + 1);
+
+            const s = sum[y2 * w + x2]
+                    - (x1 > 0 ? sum[y2 * w + (x1 - 1)] : 0)
+                    - (y1 > 0 ? sum[(y1 - 1) * w + x2] : 0)
+                    + (x1 > 0 && y1 > 0 ? sum[(y1 - 1) * w + (x1 - 1)] : 0);
+
+            const sq = sumSq[y2 * w + x2]
+                       - (x1 > 0 ? sumSq[y2 * w + (x1 - 1)] : 0)
+                       - (y1 > 0 ? sumSq[(y1 - 1) * w + x2] : 0)
+                       + (x1 > 0 && y1 > 0 ? sumSq[(y1 - 1) * w + (x1 - 1)] : 0);
+
+            const mean = s / count;
+            const variance = (sq / count) - (mean * mean);
+            norm[idx] = variance >= 0 ? variance : 0;
+        }
+    }
+
+    // Normalize to 0-255
+    let min = Infinity, max = -Infinity;
+    for (let i = 0; i < norm.length; i++) {
+        if (norm[i] < min) min = norm[i];
+        if (norm[i] > max) max = norm[i];
+    }
+    const range = max - min;
+    if (range > 0) {
+        for (let i = 0; i < norm.length; i++) {
+            out[i] = Math.round(((norm[i] - min) / range) * 255);
+        }
+    }
+    return out;
+}
+
+// k-Means Clustering
 function runKMeans1D(values, k = 3, maxIter = 10) {
-    if (values.length === 0) return [0];
-    let centroids = [10, 128, 240];
+    if (values.length === 0) return [0, 128, 255];
+    let centroids = [30, 128, 220];
     
     for (let iter = 0; iter < maxIter; iter++) {
         const clusters = Array.from({ length: k }, () => []);
@@ -682,6 +982,7 @@ function runKMeans1D(values, k = 3, maxIter = 10) {
     return centroids.sort((a, b) => a - b);
 }
 
+// Otsu Thresholding
 function getOtsuThreshold(pixels) {
     if (pixels.length === 0) return 128;
     const hist = new Array(256).fill(0);
@@ -715,6 +1016,7 @@ function getOtsuThreshold(pixels) {
     return threshold;
 }
 
+// Bradley-Roth Adaptive Thresholding
 function bradleyAdaptiveThreshold(gray, w, h, S = 25, T = 0.12) {
     const intImg = new Uint32Array(w * h);
     const out = new Uint8Array(w * h);
@@ -726,17 +1028,20 @@ function bradleyAdaptiveThreshold(gray, w, h, S = 25, T = 0.12) {
 
     for (let y = 1; y < h; y++) {
         let rowSum = 0;
+        const rowOffset = y * w;
+        const prevRowOffset = (y - 1) * w;
         for (let x = 0; x < w; x++) {
-            const idx = y * w + x;
+            const idx = rowOffset + x;
             rowSum += gray[idx];
-            intImg[idx] = intImg[(y - 1) * w + x] + rowSum;
+            intImg[idx] = intImg[prevRowOffset + x] + rowSum;
         }
     }
 
     const s2 = Math.floor(S / 2);
     for (let y = 0; y < h; y++) {
+        const rowOffset = y * w;
         for (let x = 0; x < w; x++) {
-            const idx = y * w + x;
+            const idx = rowOffset + x;
             const x1 = Math.max(0, x - s2);
             const x2 = Math.min(w - 1, x + s2);
             const y1 = Math.max(0, y - s2);
@@ -758,16 +1063,401 @@ function bradleyAdaptiveThreshold(gray, w, h, S = 25, T = 0.12) {
     return out;
 }
 
+// Morphological Dilation
+function dilate(binary, w, h, radius) {
+    const out = new Uint8Array(w * h);
+    const r2 = radius * radius;
+    const offsets = [];
+    for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+            if (dx*dx + dy*dy <= r2) {
+                offsets.push(dy * w + dx);
+            }
+        }
+    }
+    const numOffsets = offsets.length;
+
+    for (let y = 0; y < h; y++) {
+        const rowOffset = y * w;
+        for (let x = 0; x < w; x++) {
+            const idx = rowOffset + x;
+            if (binary[idx] === 0) continue;
+            for (let i = 0; i < numOffsets; i++) {
+                const nidx = idx + offsets[i];
+                if (nidx >= 0 && nidx < w * h) {
+                    out[nidx] = 255;
+                }
+            }
+        }
+    }
+    return out;
+}
+
+// Morphological Erosion
+function erode(binary, w, h, radius) {
+    const out = new Uint8Array(w * h);
+    const r2 = radius * radius;
+    const offsets = [];
+    for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+            if (dx*dx + dy*dy <= r2) {
+                offsets.push(dy * w + dx);
+            }
+        }
+    }
+    const numOffsets = offsets.length;
+
+    for (let y = radius; y < h - radius; y++) {
+        const rowOffset = y * w;
+        for (let x = radius; x < w - radius; x++) {
+            const idx = rowOffset + x;
+            let keep = true;
+            for (let i = 0; i < numOffsets; i++) {
+                if (binary[idx + offsets[i]] === 0) {
+                    keep = false;
+                    break;
+                }
+            }
+            if (keep) {
+                out[idx] = 255;
+            }
+        }
+    }
+    return out;
+}
+
+// Morphological Closing
+function morphologicalClose(binary, w, h, radius) {
+    if (radius <= 0) return binary;
+    const dilated = dilate(binary, w, h, radius);
+    return erode(dilated, w, h, radius);
+}
+
+// Connected Components Labeling (Fast Flood-Fill)
+function findConnectedComponents(binary, w, h) {
+    const visited = new Uint8Array(w * h);
+    const components = [];
+
+    for (let y = 0; y < h; y++) {
+        const rowOffset = y * w;
+        for (let x = 0; x < w; x++) {
+            const idx = rowOffset + x;
+            if (binary[idx] === 0 || visited[idx] > 0) continue;
+
+            const comp = [];
+            const queue = [idx];
+            visited[idx] = 1;
+
+            let head = 0;
+            while (head < queue.length) {
+                const curr = queue[head++];
+                comp.push(curr);
+
+                const cx = curr % w;
+                const cy = Math.floor(curr / w);
+
+                const neighbors = [];
+                if (cx < w - 1) neighbors.push(curr + 1);
+                if (cx > 0) neighbors.push(curr - 1);
+                if (cy < h - 1) neighbors.push(curr + w);
+                if (cy > 0) neighbors.push(curr - w);
+
+                for (let n = 0; n < neighbors.length; n++) {
+                    const nidx = neighbors[n];
+                    if (binary[nidx] > 0 && visited[nidx] === 0) {
+                        visited[nidx] = 1;
+                        queue.push(nidx);
+                    }
+                }
+            }
+            components.push(comp);
+        }
+    }
+    return components;
+}
+
+// Dynamic Well Edge / Mask Detection
+function getWellMaskDynamic(gray, w, h, cropMargin = 15) {
+    const wellMask = new Uint8Array(w * h);
+
+    // 1. Simple fast blur to smooth texture out
+    const blurred = new Uint8Array(w * h);
+    const boxRadius = 3;
+    for (let y = 0; y < h; y++) {
+        const rowOffset = y * w;
+        for (let x = 0; x < w; x++) {
+            let sum = 0;
+            let count = 0;
+            for (let dy = -boxRadius; dy <= boxRadius; dy++) {
+                const ny = y + dy;
+                if (ny >= 0 && ny < h) {
+                    const nRowOffset = ny * w;
+                    for (let dx = -boxRadius; dx <= boxRadius; dx++) {
+                        const nx = x + dx;
+                        if (nx >= 0 && nx < w) {
+                            sum += gray[nRowOffset + nx];
+                            count++;
+                        }
+                    }
+                }
+            }
+            blurred[rowOffset + x] = Math.round(sum / count);
+        }
+    }
+
+    // 2. Thresholding at a low level (e.g. 15) to isolate the well foreground
+    const binaryWell = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) {
+        if (blurred[i] > 15) {
+            binaryWell[i] = 255;
+        }
+    }
+
+    // 3. Find connected components on binary well image
+    const components = findConnectedComponents(binaryWell, w, h);
+    let wellComponent = null;
+    if (components.length > 0) {
+        components.sort((a, b) => b.length - a.length);
+        wellComponent = components[0];
+    }
+
+    if (wellComponent && wellComponent.length > (w * h * 0.1)) { // Must be at least 10% of image size
+        const tempMask = new Uint8Array(w * h);
+        for (let i = 0; i < wellComponent.length; i++) {
+            tempMask[wellComponent[i]] = 255;
+        }
+
+        // 4. Erode with the cropMargin to cut well boundaries completely
+        const eroded = erode(tempMask, w, h, cropMargin);
+        for (let i = 0; i < w * h; i++) {
+            wellMask[i] = eroded[i];
+        }
+    } else {
+        // Fallback: Static centered circle
+        const cx = w / 2, cy = h / 2;
+        const radius = Math.min(w, h) / 2 - cropMargin;
+        const r2 = radius * radius;
+        for (let y = 0; y < h; y++) {
+            const rowOffset = y * w;
+            for (let x = 0; x < w; x++) {
+                if ((x - cx)**2 + (y - cy)**2 <= r2) {
+                    wellMask[rowOffset + x] = 255;
+                }
+            }
+        }
+    }
+    return wellMask;
+}
+
+// Watershed Algorithm using bucket priority queue grown on the local texture/gradient
+function runWatershed(textureMap, wellMask, w, h) {
+    const markers = new Int32Array(w * h); // 0: unlabelled, 1: burn, 2: healthy, -1: outside well
+
+    const cx = w / 2, cy = h / 2;
+
+    // Find dynamic centroid of the wellMask
+    let sumX = 0, sumY = 0, count = 0;
+    for (let i = 0; i < w * h; i++) {
+        if (wellMask[i] > 0) {
+            sumX += i % w;
+            sumY += Math.floor(i / w);
+            count++;
+        }
+    }
+    const wcx = count > 0 ? (sumX / count) : cx;
+    const wcy = count > 0 ? (sumY / count) : cy;
+
+    // Calculate approximate dynamic radius of wellMask
+    const wellRadius = count > 0 ? Math.sqrt(count / Math.PI) : Math.min(w, h) / 2 - 15;
+
+    // Centers of burn seed
+    const burnSeedRad = wellRadius / 5.5;
+    // Outer rim of healthy cells seed
+    const outerRimMin = wellRadius * 0.85;
+
+    for (let y = 0; y < h; y++) {
+        const rowOffset = y * w;
+        for (let x = 0; x < w; x++) {
+            const idx = rowOffset + x;
+            if (wellMask[idx] === 0) {
+                markers[idx] = -1; // Outside well
+            } else {
+                const distToCenter = Math.sqrt((x - wcx)**2 + (y - wcy)**2);
+                if (distToCenter <= burnSeedRad) {
+                    markers[idx] = 1; // Burn Seed
+                } else if (distToCenter >= outerRimMin) {
+                    markers[idx] = 2; // Healthy Cell Seed
+                }
+            }
+        }
+    }
+
+    // Buckets queue
+    const buckets = Array.from({ length: 256 }, () => []);
+
+    // Fill initial seed neighbors
+    for (let y = 0; y < h; y++) {
+        const rowOffset = y * w;
+        for (let x = 0; x < w; x++) {
+            const idx = rowOffset + x;
+            if (markers[idx] > 0) {
+                const neighbors = [];
+                if (x < w - 1) neighbors.push(idx + 1);
+                if (x > 0) neighbors.push(idx - 1);
+                if (y < h - 1) neighbors.push(idx + w);
+                if (y > 0) neighbors.push(idx - w);
+
+                for (let n = 0; n < neighbors.length; n++) {
+                    const nidx = neighbors[n];
+                    if (markers[nidx] === 0) {
+                        const val = textureMap[nidx];
+                        buckets[val].push(nidx);
+                        markers[nidx] = markers[idx] + 10; // offset
+                    }
+                }
+            }
+        }
+    }
+
+    // Run Watershed
+    for (let val = 0; val < 256; val++) {
+        while (buckets[val].length > 0) {
+            const idx = buckets[val].pop();
+            const queuedSeed = markers[idx] - 10;
+            markers[idx] = queuedSeed; // finalize label
+
+            const cx = idx % w;
+            const cy = Math.floor(idx / w);
+
+            const neighbors = [];
+            if (cx < w - 1) neighbors.push(idx + 1);
+            if (cx > 0) neighbors.push(idx - 1);
+            if (cy < h - 1) neighbors.push(idx + w);
+            if (cy > 0) neighbors.push(idx - w);
+
+            for (let n = 0; n < neighbors.length; n++) {
+                const nidx = neighbors[n];
+                if (markers[nidx] === 0) {
+                    const nval = textureMap[nidx];
+                    buckets[nval].push(nidx);
+                    markers[nidx] = queuedSeed + 10;
+                }
+            }
+        }
+    }
+
+    const binary = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) {
+        if (markers[i] === 1) {
+            binary[i] = 255;
+        }
+    }
+    return binary;
+}
+
+// Graham Scan Convex Hull Algorithm for binary masks
+function computeConvexHull(binary, w, h) {
+    const points = [];
+    for (let y = 0; y < h; y += 2) { // step by 2 for faster execution
+        for (let x = 0; x < w; x += 2) {
+            if (binary[y * w + x] > 0) {
+                points.push({x, y});
+            }
+        }
+    }
+    if (points.length < 3) return binary;
+
+    // Find the point with the lowest y coordinate
+    let lowestIdx = 0;
+    for (let i = 1; i < points.length; i++) {
+        if (points[i].y < points[lowestIdx].y || (points[i].y === points[lowestIdx].y && points[i].x < points[lowestIdx].x)) {
+            lowestIdx = i;
+        }
+    }
+    const pivot = points[lowestIdx];
+
+    // Sort points by polar angle with pivot
+    const sorted = points.slice();
+    sorted.splice(lowestIdx, 1);
+    sorted.sort((a, b) => {
+        const order = ccw(pivot, a, b);
+        if (order === 0) {
+            const distA = (pivot.x - a.x)**2 + (pivot.y - a.y)**2;
+            const distB = (pivot.x - b.x)**2 + (pivot.y - b.y)**2;
+            return distA - distB;
+        }
+        return -order;
+    });
+
+    const hull = [pivot, sorted[0]];
+    for (let i = 1; i < sorted.length; i++) {
+        const p = sorted[i];
+        while (hull.length >= 2 && ccw(hull[hull.length - 2], hull[hull.length - 1], p) <= 0) {
+            hull.pop();
+        }
+        hull.push(p);
+    }
+
+    // Fill the Hull polygon in output binary image
+    const out = new Uint8Array(w * h);
+    if (hull.length < 3) return binary;
+
+    // Scanline polygon fill
+    const minY = Math.min(...hull.map(p => p.y));
+    const maxY = Math.max(...hull.map(p => p.y));
+
+    for (let y = minY; y <= maxY; y++) {
+        const xIntersections = [];
+        for (let i = 0; i < hull.length; i++) {
+            const p1 = hull[i];
+            const p2 = hull[(i + 1) % hull.length];
+            if ((p1.y <= y && p2.y > y) || (p2.y <= y && p1.y > y)) {
+                const x = p1.x + (y - p1.y) * (p2.x - p1.x) / (p2.y - p1.y);
+                xIntersections.push(x);
+            }
+        }
+        xIntersections.sort((a, b) => a - b);
+        for (let i = 0; i < xIntersections.length; i += 2) {
+            if (i + 1 < xIntersections.length) {
+                const startX = Math.max(0, Math.floor(xIntersections[i]));
+                const endX = Math.min(w - 1, Math.ceil(xIntersections[i+1]));
+                for (let x = startX; x <= endX; x++) {
+                    out[y * w + x] = 255;
+                }
+            }
+        }
+    }
+    return out;
+}
+
+function ccw(p1, p2, p3) {
+    return (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x);
+}
+
 // --- Image Processing Pipeline ---
-async function processImageFile(fileItem, method) {
+async function processImageFile(fileItem, cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull) {
     return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
-            const w = img.width, h = img.height;
+            const originalW = img.width, originalH = img.height;
+            // Downsample to max 350px for ultra fast local JS processing!
+            const maxDim = 350;
+            let w = originalW;
+            let h = originalH;
+            if (w > maxDim || h > maxDim) {
+                if (w > h) {
+                    h = Math.round((h * maxDim) / w);
+                    w = maxDim;
+                } else {
+                    w = Math.round((w * maxDim) / h);
+                    h = maxDim;
+                }
+            }
+
             const canvas = document.createElement('canvas');
             canvas.width = w; canvas.height = h;
             const ctxTemp = canvas.getContext('2d');
-            ctxTemp.drawImage(img, 0, 0);
+            ctxTemp.drawImage(img, 0, 0, w, h);
 
             const imgData = ctxTemp.getImageData(0, 0, w, h);
             const data = imgData.data;
@@ -777,66 +1467,151 @@ async function processImageFile(fileItem, method) {
                 gray[i / 4] = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
             }
 
-            // Circular Well ROI Mask
-            const wellMask = new Uint8Array(w * h);
-            const cx = w / 2, cy = h / 2;
-            const radius = Math.min(w, h) / 2 - 15;
-            const r2 = radius * radius;
+            // 1. DYNAMIC Well Mask Detection (Isolates the inside of the well and completely ignores dark background outside)
+            const wellMask = getWellMaskDynamic(gray, w, h, cropMargin);
             const roiPixels = [];
+            for (let i = 0; i < gray.length; i++) {
+                if (wellMask[i] > 0) {
+                    roiPixels.push(gray[i]);
+                }
+            }
 
-            for (let y = 0; y < h; y++) {
-                for (let x = 0; x < w; x++) {
-                    const idx = y * w + x;
-                    if ((x - cx)**2 + (y - cy)**2 <= r2) {
-                        wellMask[idx] = 255;
-                        roiPixels.push(gray[idx]);
+            // 2. Texture Filtering
+            let processedGray = gray;
+            if (textureFilter === 'entropy') {
+                processedGray = computeLocalEntropy(gray, w, h, textureRadius);
+            } else if (textureFilter === 'variance') {
+                processedGray = computeLocalVariance(gray, w, h, textureRadius);
+            }
+
+            // Re-collect ROI pixels of filtered map
+            const filteredRoiPixels = [];
+            for (let i = 0; i < processedGray.length; i++) {
+                if (wellMask[i] > 0) {
+                    filteredRoiPixels.push(processedGray[i]);
+                }
+            }
+
+            // 3. Thresholding Method
+            let threshBinary = new Uint8Array(w * h);
+            if (threshMethod === 'kmeans') {
+                const centroids = runKMeans1D(filteredRoiPixels, 3);
+                // Cutoff is between cluster 0 and cluster 1
+                const cutoff = centroids[0] + (centroids[1] - centroids[0]) * 0.5;
+                for (let i = 0; i < processedGray.length; i++) {
+                    if (wellMask[i] > 0) {
+                        if (invertThresh) {
+                            if (processedGray[i] < cutoff) threshBinary[i] = 255;
+                        } else {
+                            if (processedGray[i] >= cutoff) threshBinary[i] = 255;
+                        }
+                    }
+                }
+            } else if (threshMethod === 'otsu') {
+                const otsuVal = getOtsuThreshold(filteredRoiPixels);
+                for (let i = 0; i < processedGray.length; i++) {
+                    if (wellMask[i] > 0) {
+                        if (invertThresh) {
+                            if (processedGray[i] < otsuVal) threshBinary[i] = 255;
+                        } else {
+                            if (processedGray[i] >= otsuVal) threshBinary[i] = 255;
+                        }
+                    }
+                }
+            } else if (threshMethod === 'adaptive') {
+                const adapt = bradleyAdaptiveThreshold(processedGray, w, h, 25, 0.12);
+                for (let i = 0; i < processedGray.length; i++) {
+                    if (wellMask[i] > 0) {
+                        if (invertThresh) {
+                            if (adapt[i] === 0) threshBinary[i] = 255;
+                        } else {
+                            if (adapt[i] > 0) threshBinary[i] = 255;
+                        }
+                    }
+                }
+            } else if (threshMethod === 'manual') {
+                const val = parseInt(document.getElementById('manualThresholdSlider').value);
+                for (let i = 0; i < processedGray.length; i++) {
+                    if (wellMask[i] > 0) {
+                        if (invertThresh) {
+                            if (processedGray[i] < val) threshBinary[i] = 255;
+                        } else {
+                            if (processedGray[i] >= val) threshBinary[i] = 255;
+                        }
                     }
                 }
             }
 
-            const maskData = new Uint8Array(w * h);
+            // 4. Morphological Closing (Connect branches)
+            if (closingRad > 0) {
+                threshBinary = morphologicalClose(threshBinary, w, h, closingRad);
+            }
+
+            // 5. Post Processing (Continuous Area Detection)
+            let finalMask = new Uint8Array(w * h);
+
+            if (postProcess === 'watershed') {
+                // Watershed on local texture gradient map
+                finalMask = runWatershed(processedGray, wellMask, w, h);
+            } else if (postProcess === 'largest') {
+                const components = findConnectedComponents(threshBinary, w, h);
+                if (components.length > 0) {
+                    components.sort((a,b) => b.length - a.length);
+                    const largest = components[0];
+                    for (let i = 0; i < largest.length; i++) {
+                        finalMask[largest[i]] = 255;
+                    }
+                }
+            } else if (postProcess === 'proximity') {
+                const components = findConnectedComponents(threshBinary, w, h);
+                if (components.length > 0) {
+                    components.sort((a,b) => b.length - a.length);
+                    const largest = components[0];
+
+                    // Keep largest
+                    for (let i = 0; i < largest.length; i++) {
+                        finalMask[largest[i]] = 255;
+                    }
+
+                    // Keep any component larger than 100px and whose center is within 100px of the largest's center
+                    const lcx = largest.reduce((acc, idx) => acc + (idx % w), 0) / largest.length;
+                    const lcy = largest.reduce((acc, idx) => acc + Math.floor(idx / w), 0) / largest.length;
+
+                    for (let c = 1; c < components.length; c++) {
+                        const comp = components[c];
+                        if (comp.length > 100) {
+                            const ccx = comp.reduce((acc, idx) => acc + (idx % w), 0) / comp.length;
+                            const ccy = comp.reduce((acc, idx) => acc + Math.floor(idx / w), 0) / comp.length;
+                            const dist = Math.sqrt((lcx - ccx)**2 + (lcy - ccy)**2);
+                            if (dist < 100) {
+                                for (let i = 0; i < comp.length; i++) {
+                                    finalMask[comp[i]] = 255;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 6. Convex Hull Integration
+            if (useHull) {
+                finalMask = computeConvexHull(finalMask, w, h);
+            }
+
+            // Clean up with well mask
             let burnArea = 0;
-
-            if (method === 'kmeans') {
-                const centroids = runKMeans1D(roiPixels, 3);
-                const burnThreshold = centroids[0] + (centroids[1] - centroids[0]) * 0.5;
-
-                for (let i = 0; i < gray.length; i++) {
-                    if (wellMask[i] > 0 && gray[i] < burnThreshold) {
-                        maskData[i] = 255;
-                        burnArea++;
-                    }
+            for (let i = 0; i < finalMask.length; i++) {
+                if (wellMask[i] === 0) {
+                    finalMask[i] = 0;
                 }
-            } else if (method === 'otsu') {
-                const otsuThreshold = getOtsuThreshold(roiPixels);
-
-                for (let i = 0; i < gray.length; i++) {
-                    if (wellMask[i] > 0 && gray[i] < otsuThreshold) {
-                        maskData[i] = 255;
-                        burnArea++;
-                    }
-                }
-            } else if (method === 'adaptive') {
-                const adaptiveMask = bradleyAdaptiveThreshold(gray, w, h, 25, 0.12);
-
-                for (let i = 0; i < gray.length; i++) {
-                    if (wellMask[i] > 0 && adaptiveMask[i] > 0) {
-                        maskData[i] = 255;
-                        burnArea++;
-                    }
-                }
-            } else if (method === 'manual') {
-                const manualThreshold = parseInt(document.getElementById('manualThresholdSlider').value);
-
-                for (let i = 0; i < gray.length; i++) {
-                    if (wellMask[i] > 0 && gray[i] < manualThreshold) {
-                        maskData[i] = 255;
-                        burnArea++;
-                    }
-                }
+                if (finalMask[i] > 0) burnArea++;
             }
 
-            resolve({ burnArea, imgData, maskData, width: w, height: h });
+            // Scale burnArea back up to original image resolution
+            const scaleFactor = (originalW * originalH) / (w * h);
+            const scaledBurnArea = Math.round(burnArea * scaleFactor);
+
+            resolve({ burnArea: scaledBurnArea, imgData, maskData: finalMask, width: w, height: h });
         };
         img.src = URL.createObjectURL(fileItem.file);
     });
@@ -851,8 +1626,16 @@ async function renderPreview() {
     const item = filesMap.get(seriesKey).find(f => f.hours === timeVal);
     if (!item) return;
 
-    const method = document.getElementById('methodSelect').value;
-    const res = await processImageFile(item, method);
+    const cropMargin = parseInt(document.getElementById('cropMarginSlider').value);
+    const textureFilter = document.getElementById('textureSelect').value;
+    const textureRadius = parseInt(document.getElementById('textureRadiusSlider').value);
+    const threshMethod = document.getElementById('methodSelect').value;
+    const invertThresh = document.getElementById('invertThreshCheckbox').checked;
+    const postProcess = document.getElementById('postProcessSelect').value;
+    const closingRad = parseInt(document.getElementById('closingRadiusSlider').value);
+    const useHull = document.getElementById('convexHullCheckbox').checked;
+
+    const res = await processImageFile(item, cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull);
 
     mainCanvas.width = res.width;
     mainCanvas.height = res.height;
@@ -861,9 +1644,9 @@ async function renderPreview() {
     for (let i = 0; i < res.maskData.length; i++) {
         if (res.maskData[i] > 0) {
             const idx = i * 4;
-            data[idx] = Math.min(255, data[idx] + 140); // Red highlight
-            data[idx+1] = Math.max(0, data[idx+1] - 40);
-            data[idx+2] = Math.max(0, data[idx+2] - 40);
+            data[idx] = Math.min(255, data[idx] + 130); // Beautiful red highlight overlay
+            data[idx+1] = Math.max(0, data[idx+1] - 45);
+            data[idx+2] = Math.max(0, data[idx+2] - 45);
         }
     }
     ctx.putImageData(res.imgData, 0, 0);
@@ -887,7 +1670,16 @@ async function renderPreview() {
 document.getElementById('btnProcess').addEventListener('click', async () => {
     const dict = i18n[currentLang];
     statusBadge.innerText = dict.processing;
-    const method = document.getElementById('methodSelect').value;
+
+    const cropMargin = parseInt(document.getElementById('cropMarginSlider').value);
+    const textureFilter = document.getElementById('textureSelect').value;
+    const textureRadius = parseInt(document.getElementById('textureRadiusSlider').value);
+    const threshMethod = document.getElementById('methodSelect').value;
+    const invertThresh = document.getElementById('invertThreshCheckbox').checked;
+    const postProcess = document.getElementById('postProcessSelect').value;
+    const closingRad = parseInt(document.getElementById('closingRadiusSlider').value);
+    const useHull = document.getElementById('convexHullCheckbox').checked;
+
     processedResults = {};
 
     for (let [seriesKey, items] of filesMap.entries()) {
@@ -895,7 +1687,7 @@ document.getElementById('btnProcess').addEventListener('click', async () => {
         let initialArea = 0;
 
         for (let i = 0; i < items.length; i++) {
-            const res = await processImageFile(items[i], method);
+            const res = await processImageFile(items[i], cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull);
             if (i === 0) initialArea = res.burnArea;
             const closure = initialArea > 0 ? Math.max(0, (1 - (res.burnArea / initialArea)) * 100) : 0;
 
@@ -987,6 +1779,10 @@ function renderCharts() {
         }
     });
 }
+
+// Initial Call
+updateLanguage();
+toggleTextureControls();
 </script>
 </body>
 </html>
