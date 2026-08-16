@@ -538,10 +538,21 @@
         <!-- Canvas Display -->
         <div class="grid-2">
             <div class="canvas-container">
-                <!-- Toggle Wound Marking Overlay Button -->
-                <button class="btn" id="btnToggleMarking" onclick="toggleWoundMarking()" style="margin-bottom: 12px; background: var(--accent); max-width: 300px; width: 100%;">👁️ הסר סימון כוויה</button>
+                <!-- Toggle Wound Marking Overlay & Zoom Controls -->
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; width: 100%; margin-bottom: 12px;">
+                    <button class="btn" id="btnToggleMarking" onclick="toggleWoundMarking()" style="background: var(--accent); flex: 1; min-width: 180px; max-width: 260px; margin-bottom: 0;">👁️ הסר סימון כוויה</button>
 
-                <canvas id="mainCanvas"></canvas>
+                    <div style="display: flex; gap: 6px; align-items: center; background: #1e293b; padding: 4px 8px; border-radius: 6px; border: 1px solid #334155;">
+                        <button class="step-btn" id="btnZoomIn" onclick="changeZoom(0.25)" style="padding: 6px 10px; font-weight: bold;" title="Zoom In">🔍 +</button>
+                        <button class="step-btn" id="btnZoomOut" onclick="changeZoom(-0.25)" style="padding: 6px 10px; font-weight: bold;" title="Zoom Out">🔍 -</button>
+                        <button class="step-btn" id="btnZoomReset" onclick="resetZoom()" style="padding: 6px 10px; font-size: 0.8rem;" title="Reset Zoom">🔄 100%</button>
+                        <span id="zoomLevelDisplay" style="color: #f8fafc; font-weight: 600; font-size: 0.85rem; padding: 0 4px;">100%</span>
+                    </div>
+                </div>
+
+                <div id="canvasViewport" style="width: 100%; max-height: 70vh; overflow: auto; display: flex; justify-content: center; align-items: center; background: #020617; border-radius: 8px; position: relative;">
+                    <canvas id="mainCanvas"></canvas>
+                </div>
 
                 <!-- Manual Annotation Toolbox -->
                 <div id="annotationToolbox" style="display: flex; flex-direction: column; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-top: 15px; width: 100%; box-sizing: border-box; gap: 10px;">
@@ -663,6 +674,28 @@ let currentDrawingTool = 'brush'; // 'brush', 'eraser', 'polygon'
 let brushSize = 15;
 let polygonPoints = []; // [{x, y}, ...]
 let isDrawing = false;
+let currentZoomLevel = 1.0;
+
+function changeZoom(delta) {
+    setZoomLevel(currentZoomLevel + delta);
+}
+
+function resetZoom() {
+    setZoomLevel(1.0);
+}
+
+function setZoomLevel(zoom) {
+    currentZoomLevel = Math.max(0.5, Math.min(3.0, zoom));
+    const display = document.getElementById('zoomLevelDisplay');
+    if (display) {
+        display.innerText = `${Math.round(currentZoomLevel * 100)}%`;
+    }
+    const canvas = document.getElementById('mainCanvas');
+    if (canvas) {
+        canvas.style.transform = `scale(${currentZoomLevel})`;
+        canvas.style.transformOrigin = 'center center';
+    }
+}
 
 const FILENAME_REGEX = /_(?<well>[A-H]\d{1,2})_(?<site>\d+)_(?<days>\d{2})d(?<hours>\d{2})h(?<mins>\d{2})m/;
 
@@ -753,7 +786,11 @@ const i18n = {
         annotationTitle: "מצב תיוג ידני",
         enableAnnotation: "הפעל כלי תיוג ידניים",
         brushSize: "גודל מברשת / מחק: ",
-        polygonInstructions: "הקלק על הקנבס ליצירת נקודות סביב הכוויה."
+        polygonInstructions: "הקלק על הקנבס ליצירת נקודות סביב הכוויה.",
+        zoomInBtn: "🔍 הגדל (+)",
+        zoomOutBtn: "🔍 הקטן (-)",
+        zoomResetBtn: "🔄 איפוס (100%)",
+        zoomLabel: "זום: "
     },
     en: {
         title: "🔬 WoundQuant JS — Texture & Continuous Burn Analysis",
@@ -819,7 +856,11 @@ const i18n = {
         annotationTitle: "Manual Annotation Mode",
         enableAnnotation: "Enable Manual Annotation",
         brushSize: "Brush / Eraser Size: ",
-        polygonInstructions: "Click on the canvas to add points around the wound."
+        polygonInstructions: "Click on the canvas to add points around the wound.",
+        zoomInBtn: "🔍 Zoom In (+)",
+        zoomOutBtn: "🔍 Zoom Out (-)",
+        zoomResetBtn: "🔄 Reset (100%)",
+        zoomLabel: "Zoom: "
     }
 };
 
@@ -918,6 +959,10 @@ function updateLanguage() {
     document.getElementById('textImportMLBtn').innerText = dict.importMLBtn;
     document.getElementById('textAnnotationTitle').innerText = dict.annotationTitle;
     document.getElementById('labelEnableAnnotation').innerText = dict.enableAnnotation;
+
+    if (document.getElementById('btnZoomIn')) document.getElementById('btnZoomIn').innerText = dict.zoomInBtn;
+    if (document.getElementById('btnZoomOut')) document.getElementById('btnZoomOut').innerText = dict.zoomOutBtn;
+    if (document.getElementById('btnZoomReset')) document.getElementById('btnZoomReset').innerText = dict.zoomResetBtn;
     document.getElementById('labelBrushSize').innerHTML = `${dict.brushSize}<span id="brushSizeDisplay">${brushSize}px</span>`;
     document.getElementById('textPolygonInstructions').innerText = dict.polygonInstructions;
 
