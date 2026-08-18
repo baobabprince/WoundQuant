@@ -502,7 +502,12 @@
             </div>
         </div>
 
-        <button class="btn" id="btnProcess">🚀 הרץ ניתוח אצווה</button>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button class="btn" id="btnProcess" style="flex: 1;">🚀 הרץ ניתוח אצווה</button>
+            <button class="btn-secondary" id="btnExportCSV" onclick="exportResultsCSV()" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; background: #0f172a; color: #38bdf8; border: 1px solid #0284c7; border-radius: 8px; font-weight: 700; cursor: pointer;">
+                📊 <span id="textExportCSVBtn">ייצא נתונים (CSV)</span>
+            </button>
+        </div>
 
         <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
 
@@ -540,7 +545,11 @@
             <div class="canvas-container">
                 <!-- Toggle Wound Marking Overlay & Zoom Controls -->
                 <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; width: 100%; margin-bottom: 12px;">
-                    <button class="btn" id="btnToggleMarking" onclick="toggleWoundMarking()" style="background: var(--accent); flex: 1; min-width: 180px; max-width: 260px; margin-bottom: 0;">👁️ הסר סימון כוויה</button>
+
+
+                    <div id="currentFilenameDisplay" style="background: #0f172a; border: 1px solid #334155; color: #38bdf8; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; font-family: monospace; display: flex; align-items: center; gap: 6px;">
+                        📄 <span id="currentFilenameText">-</span>
+                    </div>
 
                     <div style="display: flex; gap: 6px; align-items: center; background: #1e293b; padding: 4px 8px; border-radius: 6px; border: 1px solid #334155;">
                         <button class="step-btn" id="btnZoomIn" onclick="changeZoom(0.25)" style="padding: 6px 10px; font-weight: bold;" title="Zoom In">🔍 +</button>
@@ -608,7 +617,7 @@
             <div>
                 <!-- High Burn Warning Banner -->
                 <div id="highBurnWarningBanner" style="display: none; background: #fffbeb; border: 1px solid #f59e0b; color: #b45309; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: 700; font-size: 0.9rem; align-items: center; gap: 8px; width: 100%; box-sizing: border-box;">
-                    ⚠️ <span id="highBurnWarningText">אזהרה: סדרה זו מכילה דגימה עם אחוז כוויה מעל 60%!</span>
+                    ⚠️ <span id="highBurnWarningText">אזהרה: סדרה זו מכילה דגימה עם אחוז כוויה מעל 60% או שטח כוויה קטן מ-10% בזמן 0!</span>
                 </div>
 
                 <div class="metrics-row">
@@ -747,7 +756,7 @@ const i18n = {
         metricArea: "שטח כוויה",
         metricClosure: "סגירה מצטברת",
         metricRate: "קצב סגירה",
-        highBurnWarning: "אזהרה: סדרה זו מכילה דגימה עם אחוז כוויה מעל 60%!",
+        highBurnWarning: "אזהרה: סדרה זו מכילה דגימה עם אחוז כוויה מעל 60% או שטח כוויה קטן מ-10% בזמן 0!",
         chartClosureTitle: "📈 אחוז סגירת הכוויה לאורך זמן",
         chartRateTitle: "⚡ קצב סגירה רגעי (%/h)",
         kmeans: "k-Means Clustering (אוטומטי)",
@@ -782,6 +791,7 @@ const i18n = {
         githubRepo: "מאגר ה-GitHub",
         mlSectionTitle: "🧠 אימון רשת נוירונים (ML)",
         exportMLBtn: "ייצא ערכת אימון (ZIP)",
+        exportCSVBtn: "📊 ייצא נתונים (CSV)",
         importMLLabel: "📥 ייבא תוצאות פייתון (predictions.zip):",
         importMLBtn: "בחר predictions.zip",
         annotationTitle: "מצב תיוג ידני",
@@ -817,7 +827,7 @@ const i18n = {
         metricArea: "Burn Area",
         metricClosure: "Wound Closure",
         metricRate: "Closure Rate",
-        highBurnWarning: "Warning: This series contains a sample with over 60% burn!",
+        highBurnWarning: "Warning: This series contains a sample with over 60% burn or under 10% burn at t=0!",
         chartClosureTitle: "📈 Wound Closure % Over Time",
         chartRateTitle: "⚡ Momentary Closure Rate (%/h)",
         kmeans: "k-Means Clustering (Auto)",
@@ -852,6 +862,7 @@ const i18n = {
         githubRepo: "GitHub Repository",
         mlSectionTitle: "🧠 Neural Network Training (ML)",
         exportMLBtn: "Export Training Package (ZIP)",
+        exportCSVBtn: "📊 Export Data (CSV)",
         importMLLabel: "📥 Import Python Predictions (predictions.zip):",
         importMLBtn: "Choose predictions.zip",
         annotationTitle: "Manual Annotation Mode",
@@ -929,15 +940,7 @@ function updateLanguage() {
     document.getElementById('titleChartClosure').innerText = dict.chartClosureTitle;
     document.getElementById('titleChartRate').innerText = dict.chartRateTitle;
 
-    // Toggle button translation
-    const btnMarking = document.getElementById('btnToggleMarking');
-    if (showWoundMarking) {
-        btnMarking.innerText = dict.hideMarking;
-        btnMarking.style.background = "var(--accent)";
-    } else {
-        btnMarking.innerText = dict.showMarking;
-        btnMarking.style.background = "#64748b";
-    }
+
 
     // Step buttons translation
     document.getElementById('step_final_overlay').innerText = dict.step_final_overlay;
@@ -956,6 +959,7 @@ function updateLanguage() {
     // ML & Annotation translation
     document.getElementById('mlSectionTitle').innerText = dict.mlSectionTitle;
     document.getElementById('textExportMLBtn').innerText = dict.exportMLBtn;
+    if (document.getElementById('textExportCSVBtn')) document.getElementById('textExportCSVBtn').innerText = dict.exportCSVBtn;
     document.getElementById('labelImportML').innerText = dict.importMLLabel;
     document.getElementById('textImportMLBtn').innerText = dict.importMLBtn;
     document.getElementById('textAnnotationTitle').innerText = dict.annotationTitle;
@@ -1053,15 +1057,6 @@ function setViewStep(step) {
 
 function toggleWoundMarking() {
     showWoundMarking = !showWoundMarking;
-    const btn = document.getElementById('btnToggleMarking');
-    const dict = i18n[currentLang];
-    if (showWoundMarking) {
-        btn.innerText = dict.hideMarking;
-        btn.style.background = "var(--accent)";
-    } else {
-        btn.innerText = dict.showMarking;
-        btn.style.background = "#64748b";
-    }
     renderPreview(true);
 }
 
@@ -1694,28 +1689,8 @@ function runWatershed(textureMap, wellMask, w, h, closedBinary) {
                 }
             }
         } else {
-            // Absolute fallback: center of the well
-            let sumXw = 0, sumYw = 0, countW = 0;
-            for (let i = 0; i < w * h; i++) {
-                if (wellMask[i] > 0) {
-                    sumXw += i % w;
-                    sumYw += Math.floor(i / w);
-                    countW++;
-                }
-            }
-            const cx = countW > 0 ? Math.round(sumXw / countW) : Math.round(w / 2);
-            const cy = countW > 0 ? Math.round(sumYw / countW) : Math.round(h / 2);
-            for (let dy = -3; dy <= 3; dy++) {
-                for (let dx = -3; dx <= 3; dx++) {
-                    if (dx*dx + dy*dy <= 9) {
-                        const nx = cx + dx;
-                        const ny = cy + dy;
-                        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                            burnSeed[ny * w + nx] = 255;
-                        }
-                    }
-                }
-            }
+            // High confluency / zero wound detected: do NOT plant a false seed in the well center!
+            // Leave burnSeed empty, representing 0% burn / 100% confluency.
         }
     }
 
@@ -2317,6 +2292,7 @@ async function processImageFile(fileItem, cropMargin, textureFilter, textureRadi
             const scaledWellArea = Math.round(wellArea * scaleFactor);
 
             resolve({
+                fullImg: img,
                 burnArea: scaledBurnArea,
                 wellArea: scaledWellArea,
                 imgData,
@@ -2338,7 +2314,11 @@ async function processImageFile(fileItem, cropMargin, textureFilter, textureRadi
 // --- Preview & Chart Rendering ---
 function drawViewStep(res) {
     if (currentViewStep === 'original') {
-        ctx.putImageData(res.imgData, 0, 0);
+        if (res.fullImg) {
+            ctx.drawImage(res.fullImg, 0, 0, res.width, res.height);
+        } else {
+            ctx.putImageData(res.imgData, 0, 0);
+        }
     } else if (currentViewStep === 'sharpened') {
         const tempImgData = ctx.createImageData(res.width, res.height);
         const data = tempImgData.data;
@@ -2412,21 +2392,31 @@ function drawViewStep(res) {
         }
         ctx.putImageData(tempImgData, 0, 0);
     } else { // 'final_overlay'
-        const tempImgData = ctx.createImageData(res.width, res.height);
-        tempImgData.data.set(res.imgData.data);
+        if (res.fullImg) {
+            ctx.drawImage(res.fullImg, 0, 0, res.width, res.height);
+        } else {
+            ctx.putImageData(res.imgData, 0, 0);
+        }
 
         if (showWoundMarking) {
-            const data = tempImgData.data;
+            const overlayCanvas = document.createElement('canvas');
+            overlayCanvas.width = res.width;
+            overlayCanvas.height = res.height;
+            const oCtx = overlayCanvas.getContext('2d');
+            const oImgData = oCtx.createImageData(res.width, res.height);
+            const data = oImgData.data;
             for (let i = 0; i < res.finalMask.length; i++) {
                 if (res.finalMask[i] > 0) {
                     const idx = i * 4;
-                    data[idx] = Math.min(255, data[idx] + 130);
-                    data[idx+1] = Math.max(0, data[idx+1] - 45);
-                    data[idx+2] = Math.max(0, data[idx+2] - 45);
+                    data[idx] = 239; // red
+                    data[idx+1] = 68; // green
+                    data[idx+2] = 68; // blue
+                    data[idx+3] = 130; // alpha opacity
                 }
             }
+            oCtx.putImageData(oImgData, 0, 0);
+            ctx.drawImage(overlayCanvas, 0, 0, res.width, res.height);
         }
-        ctx.putImageData(tempImgData, 0, 0);
     }
 
     // Draw saved closed polygons for current image
@@ -2509,6 +2499,11 @@ async function renderPreview(useCache = false) {
     const item = filesMap.get(seriesKey).find(f => f.hours === timeVal);
     if (!item) return;
 
+    const filenameTextEl = document.getElementById('currentFilenameText');
+    if (filenameTextEl && item.file) {
+        filenameTextEl.innerText = item.file.name;
+    }
+
     let res;
     if (useCache && lastResult && lastResult.seriesKey === seriesKey && lastResult.hours === timeVal) {
         res = lastResult;
@@ -2578,9 +2573,12 @@ async function renderPreview(useCache = false) {
     // Check if any sample in the active series has a warning (burn > 60%)
     let seriesHasWarning = false;
     if (processedResults[seriesKey]) {
-        seriesHasWarning = processedResults[seriesKey].some(d => d.burnPercent > 60);
+        const t0Sample = processedResults[seriesKey].find(d => d.hours === 0) || processedResults[seriesKey][0];
+        const t0Small = t0Sample ? (t0Sample.burnPercent < 10) : false;
+        seriesHasWarning = processedResults[seriesKey].some(d => d.burnPercent > 60) || t0Small;
     } else {
-        seriesHasWarning = (burnPercent > 60);
+        const isT0 = (timeVal === 0);
+        seriesHasWarning = (burnPercent > 60) || (isT0 && burnPercent < 10);
     }
 
     const warningBanner = document.getElementById('highBurnWarningBanner');
@@ -2710,7 +2708,9 @@ function updateSeriesLabelsWithWarnings() {
         // Strip out existing warning emoji from option text to get base key
         const baseKey = options[i].value;
         if (processedResults[baseKey]) {
-            const hasWarning = processedResults[baseKey].some(d => d.burnPercent > 60);
+            const t0Data = processedResults[baseKey].find(d => d.hours === 0) || processedResults[baseKey][0];
+            const t0Small = t0Data ? (t0Data.burnPercent < 10) : false;
+            const hasWarning = processedResults[baseKey].some(d => d.burnPercent > 60) || t0Small;
             if (hasWarning) {
                 options[i].text = `${baseKey} ⚠️`;
             } else {
@@ -3039,6 +3039,50 @@ async function maskToBlob(mask, width, height) {
     }
     ctxTemp.putImageData(imgData, 0, 0);
     return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+}
+
+
+function exportResultsCSV() {
+    const keys = Object.keys(processedResults);
+    if (keys.length === 0) {
+        alert(currentLang === 'he' ? "אין נתונים לייצוא! אנא הרץ ניתוח אצווה או טען תמונות תחילה." : "No processed results to export! Please run batch analysis or load images first.");
+        return;
+    }
+
+    let csvContent = "\uFEFF"; // UTF-8 BOM for Excel compatibility
+    csvContent += "Series/Well,Filename,Timepoint (Hours),Confluency (%),Burn (%),Burn Area (px),Well Area (px),Normalized Burn Area to t=0\n";
+
+    for (let seriesKey of keys) {
+        const seriesData = processedResults[seriesKey];
+        if (!seriesData || seriesData.length === 0) continue;
+
+        // Find t=0 baseline burn area
+        const t0Sample = seriesData.find(d => d.hours === 0) || seriesData[0];
+        const t0Area = (t0Sample && t0Sample.area > 0) ? t0Sample.area : null;
+
+        const items = filesMap.get(seriesKey) || [];
+
+        for (let i = 0; i < seriesData.length; i++) {
+            const row = seriesData[i];
+            const fileItem = items.find(f => f.hours === row.hours);
+            const filename = fileItem && fileItem.file ? fileItem.file.name : "-";
+
+            const normalizedToT0 = t0Area ? (row.area / t0Area).toFixed(4) : "N/A";
+            const confluency = row.confluency ? row.confluency.toFixed(2) : "0.00";
+            const burnPercent = row.burnPercent ? row.burnPercent.toFixed(2) : "0.00";
+
+            csvContent += `"${seriesKey}","${filename}",${row.hours},${confluency},${burnPercent},${row.area},${row.wellArea},${normalizedToT0}\n`;
+        }
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `woundquant_analysis_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 async function exportTrainingPackage() {
