@@ -669,6 +669,7 @@ let showWoundMarking = true;
 
 // Manual Annotation & ML States
 let manualMasks = new Map(); // key: seriesKey_hours, value: Uint8Array
+let savedPolygons = new Map(); // key: seriesKey_hours, value: Array of polygon points
 let isAnnotationMode = false;
 let currentDrawingTool = 'brush'; // 'brush', 'eraser', 'polygon'
 let brushSize = 15;
@@ -2428,7 +2429,33 @@ function drawViewStep(res) {
         ctx.putImageData(tempImgData, 0, 0);
     }
 
-    // Draw polygon helpers if in polygon annotation mode and points exist
+    // Draw saved closed polygons for current image
+    const activeKey = getActiveImageKey();
+    if (activeKey && savedPolygons.has(activeKey)) {
+        const polys = savedPolygons.get(activeKey);
+        polys.forEach(poly => {
+            if (poly && poly.length > 0) {
+                ctx.strokeStyle = '#0284c7';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(poly[0].x, poly[0].y);
+                for (let i = 1; i < poly.length; i++) {
+                    ctx.lineTo(poly[i].x, poly[i].y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+
+                ctx.fillStyle = '#0284c7';
+                for (let i = 0; i < poly.length; i++) {
+                    ctx.beginPath();
+                    ctx.arc(poly[i].x, poly[i].y, 4, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            }
+        });
+    }
+
+    // Draw active in-progress polygon points if in polygon tool mode
     if (isAnnotationMode && currentDrawingTool === 'polygon' && polygonPoints.length > 0) {
         ctx.strokeStyle = '#0284c7';
         ctx.lineWidth = 2.5;
@@ -2445,6 +2472,32 @@ function drawViewStep(res) {
             ctx.arc(polygonPoints[i].x, polygonPoints[i].y, 5, 0, 2 * Math.PI);
             ctx.fill();
         }
+    }
+}
+
+function recalculateActiveSeriesMetrics(seriesKey) {
+    if (!seriesKey || !processedResults[seriesKey]) return;
+    const seriesData = processedResults[seriesKey];
+    if (seriesData.length === 0) return;
+
+    let initialArea = seriesData[0].area;
+    for (let i = 0; i < seriesData.length; i++) {
+        const timeVal = seriesData[i].hours;
+        const maskKey = `${seriesKey}_${timeVal}`;
+        if (manualMasks.has(maskKey) && lastResult && lastResult.seriesKey === seriesKey && lastResult.hours === timeVal) {
+            seriesData[i].area = lastResult.burnArea;
+            seriesData[i].wellArea = lastResult.wellArea || seriesData[i].wellArea;
+            seriesData[i].confluency = ((seriesData[i].wellArea - seriesData[i].area) / seriesData[i].wellArea) * 100;
+            seriesData[i].burnPercent = (seriesData[i].area / seriesData[i].wellArea) * 100;
+        }
+        if (i === 0) initialArea = seriesData[0].area;
+        seriesData[i].closure = initialArea > 0 ? Math.max(0, (1 - (seriesData[i].area / initialArea)) * 100) : 0;
+    }
+
+    for (let i = 1; i < seriesData.length; i++) {
+        const dt = seriesData[i].hours - seriesData[i-1].hours;
+        const dc = seriesData[i].closure - seriesData[i-1].closure;
+        seriesData[i].rate = dt > 0 ? (dc / dt) : 0;
     }
 }
 
@@ -2517,6 +2570,10 @@ async function renderPreview(useCache = false) {
 
     document.getElementById('metricConfluency').innerText = `${confluency.toFixed(1)}%`;
     document.getElementById('metricArea').innerText = `${burnPercent.toFixed(1)}% (${res.burnArea.toLocaleString()} px)`;
+    recalculateActiveSeriesMetrics(seriesKey);
+    if (chartClosureInst || chartRateInst) {
+        renderCharts();
+    }
 
     // Check if any sample in the active series has a warning (burn > 60%)
     let seriesHasWarning = false;
@@ -2584,6 +2641,21 @@ document.getElementById('btnProcess').addEventListener('click', async () => {
 
         for (let i = 0; i < items.length; i++) {
             const res = await processImageFile(items[i], cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull, prevMaskSmall);
+
+            const maskKey = `${seriesKey}_${items[i].hours}`;
+            if (manualMasks.has(maskKey)) {
+                const manualMask = manualMasks.get(maskKey);
+                if (manualMask.length === res.finalMask.length) {
+                    res.finalMask.set(manualMask);
+                    let mBurnArea = 0;
+                    for (let p = 0; p < res.finalMask.length; p++) {
+                        if (res.finalMask[p] > 0) mBurnArea++;
+                    }
+                    const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;
+                    res.burnArea = Math.round(mBurnArea * scaleFactor);
+                }
+            }
+
             prevMaskSmall = res.finalMask;
             if (i === 0) initialArea = res.burnArea;
             const closure = initialArea > 0 ? Math.max(0, (1 - (res.burnArea / initialArea)) * 100) : 0;
@@ -2776,6 +2848,7 @@ function setupCanvasDrawingEvents() {
     // Mouse Event Listeners
     mainCanvas.addEventListener('mousedown', onDrawingStart);
     mainCanvas.addEventListener('mousemove', onDrawingMove);
+    mainCanvas.addEventListener('dblclick', onCanvasDoubleClick);
     window.addEventListener('mouseup', onDrawingEnd);
 
     // Touch Event Listeners
@@ -2789,11 +2862,20 @@ function removeCanvasDrawingEvents() {
 
     mainCanvas.removeEventListener('mousedown', onDrawingStart);
     mainCanvas.removeEventListener('mousemove', onDrawingMove);
+    mainCanvas.removeEventListener('dblclick', onCanvasDoubleClick);
     window.removeEventListener('mouseup', onDrawingEnd);
 
     mainCanvas.removeEventListener('touchstart', onDrawingStart);
     mainCanvas.removeEventListener('touchmove', onDrawingMove);
     mainCanvas.removeEventListener('touchend', onDrawingEnd);
+}
+
+function onCanvasDoubleClick(e) {
+    if (!isAnnotationMode || currentDrawingTool !== 'polygon') return;
+    if (e) e.preventDefault();
+    if (polygonPoints.length >= 3) {
+        applyPolygon();
+    }
 }
 
 function onDrawingStart(e) {
@@ -2902,6 +2984,14 @@ function applyPolygon() {
         }
     }
 
+    const key = getActiveImageKey();
+    if (key) {
+        if (!savedPolygons.has(key)) {
+            savedPolygons.set(key, []);
+        }
+        savedPolygons.get(key).push([...polygonPoints]);
+    }
+
     polygonPoints = [];
     renderPreview(true);
 }
@@ -2916,9 +3006,13 @@ function undoPolygonVertex() {
 function clearManualMask() {
     if (!lastResult) return;
     const mask = getActiveManualMask(lastResult);
-    if (!mask) return;
-
-    mask.fill(0);
+    if (mask) {
+        mask.fill(0);
+    }
+    const key = getActiveImageKey();
+    if (key) {
+        savedPolygons.delete(key);
+    }
     polygonPoints = [];
     renderPreview(true);
 }
