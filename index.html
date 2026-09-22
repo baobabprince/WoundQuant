@@ -23,7 +23,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
       keys.forEach(function(k){sessionStorage.removeItem(k);});
     }catch(e){}
 
-    var t="?v=23";
+    var t="?v=24";
     var appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"+t);
     if(!appRes.ok) throw new Error("app "+appRes.status);
     var boostRes=await fetch("boost.json"+t);
@@ -35,7 +35,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
 
     function rep(a,b){ if(a&&b&&html.indexOf(a)>=0) html=html.replace(a,b); }
 
-    rep("const maxDim = 350;","const maxDim = 280;");
+    rep("const maxDim = 350;","const maxDim = 99999;"); // no downsampling — full resolution
     rep("Math.max(0.5, Math.min(3.0, zoom))","Math.max(0.25, Math.min(5.0, zoom))");
     rep("canvas.style.transformOrigin = 'center center';",
         "canvas.style.transformOrigin = 'center center';\n        canvas.style.imageRendering = currentZoomLevel > 1.01 ? 'pixelated' : 'auto';");
@@ -127,7 +127,6 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
       "const dilatedPrev = dilate(prevMaskSmall, w, h, 4);"
     );
 
-    // TIFF support via UTIF
     rep(
       '<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>',
       '<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>\n    <script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js"><\/script>'
