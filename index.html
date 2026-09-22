@@ -1,105 +1,42 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
+<html lang="he" dir="rtl"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WoundQuant</title>
 <style>
-body{font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f1f5f9}
-.box{background:#fff;border:1px solid #cbd5e1;padding:24px;border-radius:12px;text-align:center;max-width:400px}
+html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
+#boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:99999;background:#f1f5f9}
+.box{background:#fff;border:1px solid #cbd5e1;padding:24px;border-radius:12px;text-align:center}
 .spinner{width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:s .6s linear infinite;margin:0 auto 10px}
 @keyframes s{to{transform:rotate(360deg)}}
 </style>
-</head>
-<body>
-<div class="box"><div class="spinner"></div><p id="msg">טוען WoundQuant…</p></div>
+</head><body>
+<div id="boot"><div class="box"><div class="spinner"></div><p id="msg">טוען WoundQuant…</p></div></div>
+<script src="c0.js?v=20"></script>
+<script src="c1.js?v=20"></script>
+<script src="c2.js?v=20"></script>
+<script src="c3.js?v=20"></script>
+<script src="c4.js?v=20"></script>
+<script src="c5.js?v=20"></script>
+<script src="c6.js?v=20"></script>
 <script>
-(async()=>{
-  const msg=document.getElementById("msg");
-  const CACHE_KEY="wq_app_v19";
-    try{["wq_app_v13","wq_app_v14","wq_app_v15","wq_full_v15","wq_full_v16","wq_full_v17","wq_full_v18"].forEach(function(k){sessionStorage.removeItem(k);});}catch(e){}
+(async function(){
+  var msg=document.getElementById("msg");
   try{
-    const cached=sessionStorage.getItem(CACHE_KEY);
-    if(cached&&cached.length>50000){document.open();document.write(cached);document.close();return;}
-    const t="?v=19";
-    const [appRes,b1]=await Promise.all([
-      fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"),
-      fetch("boost.json"+t).catch(function(){return null;})
-    ]);
-    if(!appRes.ok) throw new Error("app "+appRes.status);
-    var boostRes=(b1&&b1.ok)?b1:await fetch("https://raw.githubusercontent.com/baobabprince/WoundQuant/master/boost.json"+t);
-    if(!boostRes.ok) throw new Error("boost "+boostRes.status);
-    let html=await appRes.text();
-    const B=await boostRes.json();
-    if(html.length<10000) throw new Error("too small");
-
-    const rep=(a,b)=>{ if(a&&b&&html.includes(a)) html=html.replace(a,b); };
-
-    rep("const maxDim = 350;","const maxDim = 450;");
-    rep("Math.max(0.5, Math.min(3.0, zoom))","Math.max(0.25, Math.min(5.0, zoom))");
-    rep("canvas.style.transformOrigin = 'center center';",
-        "canvas.style.transformOrigin = 'center center';\n        canvas.style.imageRendering = currentZoomLevel > 1.01 ? 'pixelated' : 'auto';");
-
-    rep(
-      "let manualMasks = new Map(); // key: seriesKey_hours, value: Uint8Array\nlet savedPolygons = new Map(); // key: seriesKey_hours, value: Array of polygon points\nlet isAnnotationMode = false;\nlet currentDrawingTool = 'brush'; // 'brush', 'eraser', 'polygon'\nlet brushSize = 15;\nlet polygonPoints = []; // [{x, y}, ...]\nlet isDrawing = false;\nlet currentZoomLevel = 1.0;",
-      "let manualMasks = new Map();\nlet savedPolygons = new Map();\nlet annotationSource = new Map();\nlet isAnnotationMode = false;\nlet currentDrawingTool = 'brush';\nlet brushSize = 15;\nlet polygonPoints = [];\nlet isDrawing = false;\nlet currentZoomLevel = 1.0;\nlet annotationUndoStack = [];\nconst ANNOTATION_STORAGE_KEY = 'woundquant_annotations_v1';\nconst MAX_UNDO = 30;"
-    );
-
-    rep(B.highconf_old, B.highconf_new);
-
-    rep(
-      "const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;\n            res.burnArea = Math.round(burnArea * scaleFactor);",
-      "let wellPx=0; if(res.wellMask){for(let wi=0;wi<res.wellMask.length;wi++)if(res.wellMask[wi]>0)wellPx++;}\n            const scaleFactor=(wellPx>0&&res.wellArea)?(res.wellArea/wellPx):1;\n            res.burnArea=Math.round(burnArea*scaleFactor);\n            res.source='manual';"
-    );
-    rep(
-      "const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;\n                    res.burnArea = Math.round(mBurnArea * scaleFactor);",
-      "let wellPxB=0; if(res.wellMask){for(let wi=0;wi<res.wellMask.length;wi++)if(res.wellMask[wi]>0)wellPxB++;}\n                    const scaleFactor=(wellPxB>0&&res.wellArea)?(res.wellArea/wellPxB):1;\n                    res.burnArea=Math.round(mBurnArea*scaleFactor);\n                    res.source='manual';"
-    );
-
-    rep(
-      "    for (let i = 0; i < mask.length; i++) {\n        const idx = i * 4;\n        if (data[idx] > 128) {\n            mask[i] = 255;\n        }\n    }\n\n    const key = getActiveImageKey();\n    if (key) {\n        if (!savedPolygons.has(key)) {\n            savedPolygons.set(key, []);\n        }\n        savedPolygons.get(key).push([...polygonPoints]);\n    }\n\n    polygonPoints = [];\n    renderPreview(true);",
-      "    mask.fill(0);\n    for (let i = 0; i < mask.length; i++) {\n        const idx = i * 4;\n        if (data[idx] > 128) mask[i] = 255;\n    }\n    const key = getActiveImageKey();\n    if (key) {\n        if (!savedPolygons.has(key)) savedPolygons.set(key, []);\n        savedPolygons.get(key).push([...polygonPoints]);\n        annotationSource.set(key, 'manual');\n    }\n    polygonPoints = [];\n    if (lastResult) {\n      lastResult.finalMask.set(mask);\n      let ba=0; for(let i=0;i<mask.length;i++) if(mask[i]>0) ba++;\n      let wellPx=0; if(lastResult.wellMask) for(let wi=0;wi<lastResult.wellMask.length;wi++) if(lastResult.wellMask[wi]>0) wellPx++;\n      const sf=(wellPx>0&&lastResult.wellArea)?(lastResult.wellArea/wellPx):1;\n      lastResult.burnArea=Math.round(ba*sf);\n      lastResult.source='manual';\n    }\n    try{persistAnnotations();}catch(_){}\n    renderPreview(true);"
-    );
-
-    rep("function getActiveManualMask(res) {", B.storage+"function getActiveManualMask(res) {");
-
-    rep(
-      'onclick="applyPolygon()" style="background: var(--primary); color: white; border-color: var(--primary); padding: 4px 10px; font-size: 0.75rem;">✅ סגור ומלא פוליגון</button>',
-      'onclick="applyPolygon()" style="background: var(--primary); color: white; border-color: var(--primary); padding: 4px 10px; font-size: 0.75rem;">✅ סגור ומלא פוליגון</button>\n<button class="step-btn" onclick="undoAnnotation()" style="padding: 4px 10px; font-size: 0.75rem;" title="Ctrl+Z">↩️ בטל</button>'
-    );
-
-    rep(
-      'csvContent += "Series/Well,Filename,Timepoint (Hours),Confluency (%),Burn (%),Burn Area (px),Well Area (px),Normalized Burn Area to t=0\\n";',
-      'csvContent += "Series/Well,Filename,Timepoint (Hours),Confluency (%),Burn (%),Burn Area (px),Well Area (px),Normalized Burn Area to t=0,Closure (%),Closure Rate (%/h),Source\\n";'
-    );
-
-    rep(
-      "updateLanguage();\ntoggleTextureControls();\n<\/script>",
-      "updateLanguage();\ntoggleTextureControls();\nloadAnnotationsFromStorage();\ndocument.addEventListener('keydown',(e)=>{\n  if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT'))return;\n  const k=e.key.toLowerCase();\n  if(k==='b'&&isAnnotationMode)setDrawingTool('brush');\n  else if(k==='e'&&isAnnotationMode)setDrawingTool('eraser');\n  else if(k==='p'&&isAnnotationMode)setDrawingTool('polygon');\n  else if(k==='z'&&(e.ctrlKey||e.metaKey)){e.preventDefault();undoAnnotation();}\n  else if(k==='enter'&&isAnnotationMode&&currentDrawingTool==='polygon'&&polygonPoints.length>=3){e.preventDefault();applyPolygon();}\n});\n<\/script>"
-    );
-
-    rep(
-      "    filesMap.clear();\n    let loadedCount = 0;\n\n    for (const fileName of exampleFilenames) {\n        try {\n            const encodedName = encodeURIComponent(fileName);\n            const response = await fetch(`./examples/${encodedName}`);\n            if (!response.ok) continue;\n            const blob = await response.blob();\n            const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });\n\n            const match = fileName.match(FILENAME_REGEX);\n            if (match) {\n                const { well, site, days, hours, mins } = match.groups;\n                const totalHours = parseInt(days)*24 + parseInt(hours) + parseInt(mins)/60;\n                const seriesKey = `${well}_Site${site}`;\n\n                if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n                filesMap.get(seriesKey).push({ file, hours: totalHours, well, site });\n                loadedCount++;\n            }\n        } catch (e) {\n            console.warn(`Could not load ./examples/${fileName}`, e);\n        }\n    }",
-      "    filesMap.clear();\n    const CDN='https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/examples/';\n    const results=await Promise.all(exampleFilenames.map(async(fileName)=>{\n      try{\n        const r=await fetch(CDN+encodeURIComponent(fileName));\n        if(!r.ok)return null;\n        const blob=await r.blob();\n        return new File([blob],fileName,{type:blob.type||'image/jpeg'});\n      }catch(e){return null;}\n    }));\n    let loadedCount=0;\n    for(const file of results){\n      if(!file)continue;\n      const match=file.name.match(FILENAME_REGEX);\n      if(!match)continue;\n      const {well,site,days,hours,mins}=match.groups;\n      const totalHours=parseInt(days)*24+parseInt(hours)+parseInt(mins)/60;\n      const seriesKey=`${well}_Site${site}`;\n      if(!filesMap.has(seriesKey))filesMap.set(seriesKey,[]);\n      filesMap.get(seriesKey).push({file,hours:totalHours,well,site});\n      loadedCount++;\n    }"
-    );
-
-    rep(
-      "    files.forEach(file => {\n        const match = file.name.match(FILENAME_REGEX);\n        if (match) {\n            const { well, site, days, hours, mins } = match.groups;\n            const totalHours = parseInt(days)*24 + parseInt(hours) + parseInt(mins)/60;\n            const seriesKey = `${well}_Site${site}`;\n\n            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n            filesMap.get(seriesKey).push({ file, hours: totalHours, well, site });\n        }\n    });\n\n    statusBadge.innerText = dict.loadedManual(files.length);\n    populateSeriesDropdown();",
-      "    let matched = 0, unmatched = 0;\n    files.forEach((file, fi) => {\n        const match = file.name.match(FILENAME_REGEX);\n        if (match) {\n            const { well, site, days, hours, mins } = match.groups;\n            const totalHours = parseInt(days)*24 + parseInt(hours) + parseInt(mins)/60;\n            const seriesKey = `${well}_Site${site}`;\n            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n            filesMap.get(seriesKey).push({ file, hours: totalHours, well, site });\n            matched++;\n        } else {\n            const seriesKey = 'Upload';\n            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n            filesMap.get(seriesKey).push({ file, hours: unmatched, well: 'X', site: '1' });\n            unmatched++;\n        }\n    });\n    statusBadge.innerText = matched + unmatched > 0\n      ? (dict.loadedManual(matched + unmatched) + (unmatched ? ` (${unmatched} ללא תבנית שם)` : ''))\n      : (currentLang==='he' ? 'לא נטענו קבצים' : 'No files loaded');\n    populateSeriesDropdown();"
-    );
-
-    rep(
-      "        res = await processImageFile(item, cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull, prevMaskSmall);\n        res.seriesKey = seriesKey;\n        res.hours = timeVal;\n        lastResult = res;",
-      "        try {\n          const sb = document.getElementById('statusBadge');\n          if (sb) sb.innerText = (typeof currentLang!=='undefined'&&currentLang==='he') ? 'מעבד תמונה…' : 'Processing…';\n          res = await processImageFile(item, cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull, prevMaskSmall);\n          res.seriesKey = seriesKey;\n          res.hours = timeVal;\n          lastResult = res;\n          if (sb) sb.innerText = (typeof currentLang!=='undefined'&&currentLang==='he') ? 'מוכן' : 'Ready';\n        } catch (err) {\n          console.error(err);\n          const sb = document.getElementById('statusBadge');\n          if (sb) sb.innerText = 'שגיאה: ' + (err && err.message ? err.message : err);\n          return;\n        }"
-    );
-
-    try{sessionStorage.setItem(CACHE_KEY,html);}catch(e){}
-    document.open(); document.write(html); document.close();
+    if(!window.WQ) throw new Error("missing data");
+    var bin=atob(window.WQ);
+    var bytes=new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    var stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    var html=await new Response(stream).text();
+    if(html.length<50000) throw new Error("bad app size");
+    document.open();
+    document.write(html);
+    document.close();
   }catch(e){
     msg.textContent="שגיאה: "+e.message;
     console.error(e);
   }
 })();
 </script>
-</body>
-</html>
+</body></html>
