@@ -12,22 +12,54 @@ body{font-family:system-ui;display:flex;align-items:center;justify-content:cente
 </style>
 </head>
 <body>
-<div class="box"><div class="spinner"></div><p id="m">טוען...</p></div>
+<div class="box"><div class="spinner"></div><p id="msg">טוען...</p></div>
 <script>
-(async()=>{
-  const m=document.getElementById("m");
+(async function(){
+  const msg=document.getElementById("msg");
   try{
-    const t="?v=4";
-    const parts=await Promise.all([0,1,2,3].map(i=>
-      fetch("wq_c"+i+".b64"+t).then(r=>{if(!r.ok)throw new Error("c"+i+" "+r.status);return r.text()})
-    ));
-    m.textContent="מפענח...";
-    const bin=Uint8Array.from(atob(parts.join("").replace(/\s/g,"")),c=>c.charCodeAt(0));
-    const html=await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+    const res=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html");
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    let html=await res.text();
     if(html.length<10000) throw new Error("too small");
-    document.open(); document.write(html); document.close();
+
+    function rep(a,b,label){
+      if(!html.includes(a)) throw new Error("patch: "+label);
+      html=html.replace(a,b);
+    }
+
+    rep("            // Downsample to max 350px for ultra fast local JS processing!\n            const maxDim = 350;",
+        "            // Downsample to max 600px\n            const maxDim = 600;","dim");
+    rep("    currentZoomLevel = Math.max(0.5, Math.min(3.0, zoom));",
+        "    currentZoomLevel = Math.max(0.25, Math.min(5.0, zoom));","zoom");
+    rep("        canvas.style.transform = `scale(${currentZoomLevel})`;\n        canvas.style.transformOrigin = 'center center';",
+        "        canvas.style.transform = `scale(${currentZoomLevel})`;\n        canvas.style.transformOrigin = 'center center';\n        canvas.style.imageRendering = currentZoomLevel > 1.01 ? 'pixelated' : 'auto';","pix");
+
+    rep("let manualMasks = new Map(); // key: seriesKey_hours, value: Uint8Array\nlet savedPolygons = new Map(); // key: seriesKey_hours, value: Array of polygon points\nlet isAnnotationMode = false;\nlet currentDrawingTool = 'brush'; // 'brush', 'eraser', 'polygon'\nlet brushSize = 15;\nlet polygonPoints = []; // [{x, y}, ...]\nlet isDrawing = false;\nlet currentZoomLevel = 1.0;",
+        "let manualMasks = new Map();\nlet savedPolygons = new Map();\nlet annotationSource = new Map();\nlet isAnnotationMode = false;\nlet currentDrawingTool = 'brush';\nlet brushSize = 15;\nlet polygonPoints = [];\nlet isDrawing = false;\nlet currentZoomLevel = 1.0;\nlet annotationUndoStack = [];\nconst ANNOTATION_STORAGE_KEY = 'woundquant_annotations_v1';\nconst MAX_UNDO = 30;","state");
+
+    rep("            const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;\n            res.burnArea = Math.round(burnArea * scaleFactor);",
+        "            let wellPx = 0;\n            if (res.wellMask) { for (let wi = 0; wi < res.wellMask.length; wi++) if (res.wellMask[wi] > 0) wellPx++; }\n            const scaleFactor = (wellPx > 0 && res.wellArea) ? (res.wellArea / wellPx) : 1;\n            res.burnArea = Math.round(burnArea * scaleFactor);\n            res.source = 'manual';\n            if (lastResult) lastResult.burnArea = res.burnArea;","sf");
+
+    rep("                    const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;\n                    res.burnArea = Math.round(mBurnArea * scaleFactor);",
+        "                    let wellPxB = 0;\n                    if (res.wellMask) { for (let wi = 0; wi < res.wellMask.length; wi++) if (res.wellMask[wi] > 0) wellPxB++; }\n                    const scaleFactor = (wellPxB > 0 && res.wellArea) ? (res.wellArea / wellPxB) : 1;\n                    res.burnArea = Math.round(mBurnArea * scaleFactor);\n                    res.source = 'manual';","batch");
+
+    rep("    for (let i = 0; i < mask.length; i++) {\n        const idx = i * 4;\n        if (data[idx] > 128) {\n            mask[i] = 255;\n        }\n    }\n\n    const key = getActiveImageKey();\n    if (key) {\n        if (!savedPolygons.has(key)) {\n            savedPolygons.set(key, []);\n        }\n        savedPolygons.get(key).push([...polygonPoints]);\n    }\n\n    polygonPoints = [];\n    renderPreview(true);",
+        "    mask.fill(0);\n    for (let i = 0; i < mask.length; i++) {\n        const idx = i * 4;\n        if (data[idx] > 128) mask[i] = 255;\n    }\n    const key = getActiveImageKey();\n    if (key) {\n        if (!savedPolygons.has(key)) savedPolygons.set(key, []);\n        savedPolygons.get(key).push([...polygonPoints]);\n        annotationSource.set(key, 'manual');\n    }\n    polygonPoints = [];\n    if (lastResult) {\n        lastResult.finalMask.set(mask);\n        let ba = 0;\n        for (let i = 0; i < mask.length; i++) if (mask[i] > 0) ba++;\n        let wellPx = 0;\n        if (lastResult.wellMask) for (let wi = 0; wi < lastResult.wellMask.length; wi++) if (lastResult.wellMask[wi] > 0) wellPx++;\n        const sf = (wellPx > 0 && lastResult.wellArea) ? (lastResult.wellArea / wellPx) : 1;\n        lastResult.burnArea = Math.round(ba * sf);\n        lastResult.source = 'manual';\n    }\n    try { persistAnnotations(); } catch(_){}\n    renderPreview(true);","poly");
+
+    const storageCode = `\nfunction maskToBase64(mask){let bin='';const ch=0x8000;for(let i=0;i<mask.length;i+=ch)bin+=String.fromCharCode.apply(null,mask.subarray(i,Math.min(i+ch,mask.length)));return btoa(bin);}\nfunction base64ToMask(b64,len){const bin=atob(b64);const m=new Uint8Array(len);for(let i=0;i<Math.min(bin.length,len);i++)m[i]=bin.charCodeAt(i);return m;}\nfunction persistAnnotations(){try{const p={masks:{},polygons:{},sources:{},savedAt:Date.now()};for(const[k,mask]of manualMasks)p.masks[k]={data:maskToBase64(mask),length:mask.length};for(const[k,polys]of savedPolygons)p.polygons[k]=polys;for(const[k,s]of annotationSource)p.sources[k]=s;localStorage.setItem(ANNOTATION_STORAGE_KEY,JSON.stringify(p));}catch(e){console.warn(e);}}\nfunction loadAnnotationsFromStorage(){try{const raw=localStorage.getItem(ANNOTATION_STORAGE_KEY);if(!raw)return;const p=JSON.parse(raw);if(p.masks)for(const[k,o]of Object.entries(p.masks))if(o&&o.data&&o.length)manualMasks.set(k,base64ToMask(o.data,o.length));if(p.polygons)for(const[k,polys]of Object.entries(p.polygons))savedPolygons.set(k,polys);if(p.sources)for(const[k,s]of Object.entries(p.sources))annotationSource.set(k,s);}catch(e){console.warn(e);}}\nfunction pushAnnotationUndo(){const key=getActiveImageKey();if(!key||!manualMasks.has(key))return;annotationUndoStack.push({key,maskCopy:new Uint8Array(manualMasks.get(key))});if(annotationUndoStack.length>MAX_UNDO)annotationUndoStack.shift();}\nfunction undoAnnotation(){if(!annotationUndoStack.length){alert(currentLang==='he'?'אין פעולות לביטול':'Nothing to undo');return;}const last=annotationUndoStack.pop();manualMasks.set(last.key,last.maskCopy);annotationSource.set(last.key,'manual');persistAnnotations();renderPreview(true);}\n`;
+    rep("function getActiveManualMask(res) {", storageCode + "function getActiveManualMask(res) {", "storage");
+
+    rep('onclick="applyPolygon()" style="background: var(--primary); color: white; border-color: var(--primary); padding: 4px 10px; font-size: 0.75rem;">✅ סגור ומלא פוליגון</button>',
+        'onclick="applyPolygon()" style="background: var(--primary); color: white; border-color: var(--primary); padding: 4px 10px; font-size: 0.75rem;">✅ סגור ומלא פוליגון</button>\n<button class="step-btn" onclick="undoAnnotation()" style="padding: 4px 10px; font-size: 0.75rem;" title="Ctrl+Z">↩️ בטל</button>',"btn");
+
+    rep("updateLanguage();\ntoggleTextureControls();\n</script>",
+        "updateLanguage();\ntoggleTextureControls();\nloadAnnotationsFromStorage();\ndocument.addEventListener('keydown',(e)=>{\n  if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT'))return;\n  const k=e.key.toLowerCase();\n  if(k==='b'&&isAnnotationMode)setDrawingTool('brush');\n  else if(k==='e'&&isAnnotationMode)setDrawingTool('eraser');\n  else if(k==='p'&&isAnnotationMode)setDrawingTool('polygon');\n  else if(k==='z'&&(e.ctrlKey||e.metaKey)){e.preventDefault();undoAnnotation();}\n  else if(k==='enter'&&isAnnotationMode&&currentDrawingTool==='polygon'&&polygonPoints.length>=3){e.preventDefault();applyPolygon();}\n});\n</script>","init");
+
+    document.open();
+    document.write(html);
+    document.close();
   }catch(e){
-    m.textContent="שגיאה: "+e.message;
+    msg.textContent="שגיאה: "+e.message;
     console.error(e);
   }
 })();
