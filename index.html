@@ -17,12 +17,11 @@ body{font-family:system-ui;display:flex;align-items:center;justify-content:cente
 (async()=>{
   const msg=document.getElementById("msg");
   try{
-    const t="?v=8";
-    const [appRes, boostRes]=await Promise.all([
-      fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"),
-      fetch("boost.json"+t)
-    ]);
+    const t="?v=9";
+    const appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html");
     if(!appRes.ok) throw new Error("app "+appRes.status);
+    let boostRes=await fetch("boost.json"+t);
+    if(!boostRes.ok) boostRes=await fetch("https://raw.githubusercontent.com/baobabprince/WoundQuant/master/boost.json"+t);
     if(!boostRes.ok) throw new Error("boost "+boostRes.status);
     let html=await appRes.text();
     const B=await boostRes.json();
