@@ -15,16 +15,20 @@ body{font-family:system-ui;display:flex;align-items:center;justify-content:cente
 <script>
 (async function(){
   const msg=document.getElementById("msg");
+  const keys=["old_clean","new_clean","storage","old_apply","new_apply","old_clear","new_clear","old_stroke","new_stroke","old_end","new_end","old_sf","new_sf"];
   try{
-    const [htmlRes, patchRes]=await Promise.all([
-      fetch("https://raw.githubusercontent.com/baobabprince/WoundQuant/1c657ff/index.html?t="+Date.now()),
-      fetch("patches.json?t="+Date.now())
-    ]);
+    const t="?t="+Date.now();
+    const htmlRes=await fetch("https://raw.githubusercontent.com/baobabprince/WoundQuant/1c657ff/index.html"+t);
     if(!htmlRes.ok) throw new Error("app HTTP "+htmlRes.status);
-    if(!patchRes.ok) throw new Error("patches HTTP "+patchRes.status);
     let html=await htmlRes.text();
-    const P=await patchRes.json();
     if(html.length<10000) throw new Error("too small");
+
+    const patchFetches=await Promise.all(keys.map(k=>fetch("patches/"+k+".txt"+t).then(r=>{
+      if(!r.ok) throw new Error("patch "+k+" "+r.status);
+      return r.text().then(txt=>({k,txt}));
+    })));
+    const P={};
+    for(const {k,txt} of patchFetches) P[k]=txt;
 
     function rep(a,b,label){
       if(!a||!b) return;
