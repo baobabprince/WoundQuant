@@ -23,7 +23,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
       keys.forEach(function(k){sessionStorage.removeItem(k);});
     }catch(e){}
 
-    var t="?v=22";
+    var t="?v=23";
     var appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"+t);
     if(!appRes.ok) throw new Error("app "+appRes.status);
     var boostRes=await fetch("boost.json"+t);
@@ -95,10 +95,9 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
 
     rep(
       "        res = await processImageFile(item, cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull, prevMaskSmall);\n        res.seriesKey = seriesKey;\n        res.hours = timeVal;\n        lastResult = res;",
-      "        try {\n          var sb = document.getElementById('statusBadge');\n          if (sb) sb.innerText = (typeof currentLang!=='undefined'&&currentLang==='he') ? 'מעבד תמונה…' : 'Processing…';\n          res = await processImageFile(item, cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull, prevMaskSmall);\n          res.seriesKey = seriesKey;\n          res.hours = timeVal;\n          lastResult = res;\n          if (sb) sb.innerText = (typeof currentLang!=='undefined'&&currentLang==='he') ? 'מוכן' : 'Ready';\n        } catch (err) {\n          console.error(err);\n          var sb2 = document.getElementById('statusBadge');\n          if (sb2) sb2.innerText = 'שגיאה: ' + (err && err.message ? err.message : err);\n          return;\n        }"
+      "        try {\n          var sb = document.getElementById('statusBadge');\n          if (sb) sb.innerText = (typeof currentLang!=='undefined'&&currentLang==='he') ? 'מעבד תמונה…' : 'Processing…';\n          res = await processImageFile(item, cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull, prevMaskSmall);\n          if (res && res.error) { if (sb) sb.innerText = 'שגיאה בטעינת תמונה (TIFF/פורמט?)'; return; }\n          res.seriesKey = seriesKey;\n          res.hours = timeVal;\n          lastResult = res;\n          if (sb) sb.innerText = (typeof currentLang!=='undefined'&&currentLang==='he') ? 'מוכן' : 'Ready';\n        } catch (err) {\n          console.error(err);\n          var sb2 = document.getElementById('statusBadge');\n          if (sb2) sb2.innerText = 'שגיאה: ' + (err && err.message ? err.message : err);\n          return;\n        }"
     );
 
-    // SPEED patches
     rep(
       '<option value="entropy" selected>אנטרופיה מקומית (Local Entropy)</option>',
       '<option value="entropy">אנטרופיה מקומית (Local Entropy)</option>'
@@ -126,6 +125,20 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
     rep(
       "const dilatedPrev = dilate(prevMaskSmall, w, h, 8);",
       "const dilatedPrev = dilate(prevMaskSmall, w, h, 4);"
+    );
+
+    // TIFF support via UTIF
+    rep(
+      '<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>',
+      '<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>\n    <script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js"><\/script>'
+    );
+    rep(
+      'accept="image/*"',
+      'accept="image/*,.tif,.tiff,image/tiff,image/tif"'
+    );
+    rep(
+      "        img.src = URL.createObjectURL(fileItem.file);\n    });\n}",
+      "        (async function(){\n          try {\n            var f = fileItem.file;\n            var nm = (f.name || '').toLowerCase();\n            var isTiff = nm.endsWith('.tif') || nm.endsWith('.tiff') || (f.type && f.type.indexOf('tif') >= 0);\n            if (isTiff) {\n              if (typeof UTIF === 'undefined') throw new Error('TIFF decoder (UTIF) not loaded');\n              var buf = await f.arrayBuffer();\n              var ifds = UTIF.decode(buf);\n              if (!ifds || !ifds.length) throw new Error('empty TIFF');\n              UTIF.decodeImage(buf, ifds[0]);\n              var rgba = new Uint8ClampedArray(UTIF.toRGBA8(ifds[0]));\n              var tc = document.createElement('canvas');\n              tc.width = ifds[0].width; tc.height = ifds[0].height;\n              tc.getContext('2d').putImageData(new ImageData(rgba, tc.width, tc.height), 0, 0);\n              tc.toBlob(function(blob){\n                if (!blob) { resolve({error:true, burnArea:0, wellArea:1, finalMask:new Uint8Array(1), wellMask:new Uint8Array(1), width:1, height:1, imgData:null, fullImg:null}); return; }\n                img.src = URL.createObjectURL(blob);\n              }, 'image/png');\n            } else {\n              img.src = URL.createObjectURL(f);\n            }\n          } catch (err) {\n            console.error(err);\n            resolve({error:true, message: String(err && err.message || err), burnArea:0, wellArea:1, finalMask:new Uint8Array(1), wellMask:new Uint8Array(1), width:1, height:1, imgData:null, fullImg:null});\n          }\n        })();\n    });\n}"
     );
 
     var boot=document.getElementById('boot');
