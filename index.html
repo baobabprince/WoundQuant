@@ -23,7 +23,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
       keys.forEach(function(k){sessionStorage.removeItem(k);});
     }catch(e){}
 
-    var t="?v=24";
+    var t="?v=25";
     var appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"+t);
     if(!appRes.ok) throw new Error("app "+appRes.status);
     var boostRes=await fetch("boost.json"+t);
@@ -35,7 +35,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
 
     function rep(a,b){ if(a&&b&&html.indexOf(a)>=0) html=html.replace(a,b); }
 
-    rep("const maxDim = 350;","const maxDim = 99999;"); // no downsampling — full resolution
+    rep("const maxDim = 350;","const maxDim = 99999;");
     rep("Math.max(0.5, Math.min(3.0, zoom))","Math.max(0.25, Math.min(5.0, zoom))");
     rep("canvas.style.transformOrigin = 'center center';",
         "canvas.style.transformOrigin = 'center center';\n        canvas.style.imageRendering = currentZoomLevel > 1.01 ? 'pixelated' : 'auto';");
@@ -138,6 +138,24 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
     rep(
       "        img.src = URL.createObjectURL(fileItem.file);\n    });\n}",
       "        (async function(){\n          try {\n            var f = fileItem.file;\n            var nm = (f.name || '').toLowerCase();\n            var isTiff = nm.endsWith('.tif') || nm.endsWith('.tiff') || (f.type && f.type.indexOf('tif') >= 0);\n            if (isTiff) {\n              if (typeof UTIF === 'undefined') throw new Error('TIFF decoder (UTIF) not loaded');\n              var buf = await f.arrayBuffer();\n              var ifds = UTIF.decode(buf);\n              if (!ifds || !ifds.length) throw new Error('empty TIFF');\n              UTIF.decodeImage(buf, ifds[0]);\n              var rgba = new Uint8ClampedArray(UTIF.toRGBA8(ifds[0]));\n              var tc = document.createElement('canvas');\n              tc.width = ifds[0].width; tc.height = ifds[0].height;\n              tc.getContext('2d').putImageData(new ImageData(rgba, tc.width, tc.height), 0, 0);\n              tc.toBlob(function(blob){\n                if (!blob) { resolve({error:true, burnArea:0, wellArea:1, finalMask:new Uint8Array(1), wellMask:new Uint8Array(1), width:1, height:1, imgData:null, fullImg:null}); return; }\n                img.src = URL.createObjectURL(blob);\n              }, 'image/png');\n            } else {\n              img.src = URL.createObjectURL(f);\n            }\n          } catch (err) {\n            console.error(err);\n            resolve({error:true, message: String(err && err.message || err), burnArea:0, wellArea:1, finalMask:new Uint8Array(1), wellMask:new Uint8Array(1), width:1, height:1, imgData:null, fullImg:null});\n          }\n        })();\n    });\n}"
+    );
+
+    // Fix full-well marking + download annotated image
+    rep(
+      'id="invertThreshCheckbox" checked onchange="renderPreview()"',
+      'id="invertThreshCheckbox" onchange="renderPreview()"'
+    );
+    rep(
+      '<option value="chan_vese" selected>סגמנטציית אקטיב קונטור במרחב-זמן (Chan-Vese)</option>\n                <option value="largest">הרכיב הקשיר הגדול ביותר בלבד</option>',
+      '<option value="chan_vese">סגמנטציית אקטיב קונטור במרחב-זמן (Chan-Vese)</option>\n                <option value="largest" selected>הרכיב הקשיר הגדול ביותר בלבד</option>'
+    );
+    rep(
+      "function exportResultsCSV() {",
+      "function downloadAnnotatedImage(){\n  try{\n    if(!lastResult){alert(currentLang==='he'?'אין תמונה להורדה — העלה ועבד תמונה תחילה':'No image to download');return;}\n    var link=document.createElement('a');\n    var name=(document.getElementById('currentFilenameText')&&document.getElementById('currentFilenameText').innerText)||'woundquant';\n    name=name.replace(/\\.[^.]+$/,'')+'_annotated.png';\n    link.download=name;\n    link.href=mainCanvas.toDataURL('image/png');\n    link.click();\n  }catch(e){console.error(e);alert('Export error: '+e.message);}\n}\nfunction exportResultsCSV() {"
+    );
+    rep(
+      '<button class="btn-secondary" id="btnExportCSV"',
+      '<button class="btn-secondary" id="btnDownloadAnnotated" onclick="downloadAnnotatedImage()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;">📸 <span id="textDownloadAnnotated">הורד תמונה עם סימון</span></button>\n            <button class="btn-secondary" id="btnExportCSV"'
     );
 
     var boot=document.getElementById('boot');
