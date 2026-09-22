@@ -17,14 +17,15 @@ body{display:flex;align-items:center;justify-content:center;background:#f1f5f9}
 <script>
 (async()=>{
   const msg=document.getElementById("msg");
-  const KEY="wq_full_v15";
+  const KEY="wq_full_v16";
   try{
-    try{sessionStorage.removeItem("wq_app_v13");sessionStorage.removeItem("wq_app_v14");sessionStorage.removeItem("wq_app_v15");}catch(e){}
+    try{["wq_app_v13","wq_app_v14","wq_app_v15","wq_full_v15"].forEach(k=>sessionStorage.removeItem(k));}catch(e){}
     let html=sessionStorage.getItem(KEY);
     if(!html||html.length<50000){
-      const [r1,r2]=await Promise.all([fetch("app.p1.b64?v=15"),fetch("app.p2.b64?v=15")]);
-      if(!r1.ok||!r2.ok) throw new Error("fetch "+r1.status+"/"+r2.status);
-      const b64=(await r1.text())+(await r2.text());
+      const urls=["app.0.b64","app.1.b64","app.2.b64","app.3.b64","app.4.b64"].map(u=>u+"?v=16");
+      const rs=await Promise.all(urls.map(u=>fetch(u)));
+      if(rs.some(r=>!r.ok)) throw new Error("fetch fail");
+      const b64=(await Promise.all(rs.map(r=>r.text()))).join("");
       const bin=atob(b64);
       const bytes=new Uint8Array(bin.length);
       for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
