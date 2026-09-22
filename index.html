@@ -6,29 +6,53 @@
 <title>WoundQuant</title>
 <style>
 body{font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f1f5f9}
-.box{background:#fff;border:1px solid #cbd5e1;padding:24px;border-radius:12px;text-align:center;max-width:420px}
-.spinner{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:s .6s linear infinite;margin:0 auto 12px}
+.box{background:#fff;border:1px solid #cbd5e1;padding:24px;border-radius:12px;text-align:center;max-width:400px}
+.spinner{width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:s .6s linear infinite;margin:0 auto 10px}
 @keyframes s{to{transform:rotate(360deg)}}
-p{margin:8px 0;color:#334155}
 </style>
 </head>
 <body>
-<div class="box"><div class="spinner"></div><p id="m">טוען WoundQuant…</p></div>
+<div class="box"><div class="spinner"></div><p id="msg">טוען WoundQuant…</p></div>
 <script>
 (async()=>{
-  const m=document.getElementById("m");
+  const msg=document.getElementById("msg");
   try{
-    const t="?v=5";
-    const parts=await Promise.all([0,1,2,3].map(i=>
-      fetch("wq_c"+i+".b64"+t).then(r=>{if(!r.ok)throw new Error("part "+i+": "+r.status);return r.text()})
-    ));
-    m.textContent="מפענח…";
-    const bin=Uint8Array.from(atob(parts.join("").replace(/\s/g,"")),c=>c.charCodeAt(0));
-    const html=await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
-    if(html.length<50000) throw new Error("payload too small");
+    let html=null;
+    try{
+      const r0=await fetch("app.html?v=7");
+      if(r0.ok){ const t=await r0.text(); if(t.length>50000) html=t; }
+    }catch(_){}
+    if(!html){
+      const r=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html");
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      html=await r.text();
+    }
+    if(html.length<10000) throw new Error("too small");
+
+    const rep=(a,b)=>{ if(html.includes(a)) html=html.replace(a,b); };
+
+    rep("const maxDim = 350;","const maxDim = 600;");
+    rep("Math.max(0.5, Math.min(3.0, zoom))","Math.max(0.25, Math.min(5.0, zoom))");
+    rep("canvas.style.transformOrigin = 'center center';",
+        "canvas.style.transformOrigin = 'center center';\n        canvas.style.imageRendering = currentZoomLevel > 1.01 ? 'pixelated' : 'auto';");
+
+    rep(
+      "const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;\n            res.burnArea = Math.round(burnArea * scaleFactor);",
+      "let wellPx=0; if(res.wellMask){for(let wi=0;wi<res.wellMask.length;wi++)if(res.wellMask[wi]>0)wellPx++;}\n            const scaleFactor=(wellPx>0&&res.wellArea)?(res.wellArea/wellPx):1;\n            res.burnArea=Math.round(burnArea*scaleFactor);\n            res.source='manual';"
+    );
+    rep(
+      "const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;\n                    res.burnArea = Math.round(mBurnArea * scaleFactor);",
+      "let wellPxB=0; if(res.wellMask){for(let wi=0;wi<res.wellMask.length;wi++)if(res.wellMask[wi]>0)wellPxB++;}\n                    const scaleFactor=(wellPxB>0&&res.wellArea)?(res.wellArea/wellPxB):1;\n                    res.burnArea=Math.round(mBurnArea*scaleFactor);\n                    res.source='manual';"
+    );
+
+    rep(
+      "    for (let i = 0; i < mask.length; i++) {\n        const idx = i * 4;\n        if (data[idx] > 128) {\n            mask[i] = 255;\n        }\n    }\n\n    const key = getActiveImageKey();\n    if (key) {\n        if (!savedPolygons.has(key)) {\n            savedPolygons.set(key, []);\n        }\n        savedPolygons.get(key).push([...polygonPoints]);\n    }\n\n    polygonPoints = [];\n    renderPreview(true);",
+      "    mask.fill(0);\n    for (let i = 0; i < mask.length; i++) {\n        const idx = i * 4;\n        if (data[idx] > 128) mask[i] = 255;\n    }\n    const key = getActiveImageKey();\n    if (key) {\n        if (!savedPolygons.has(key)) savedPolygons.set(key, []);\n        savedPolygons.get(key).push([...polygonPoints]);\n    }\n    polygonPoints = [];\n    if (lastResult) {\n      lastResult.finalMask.set(mask);\n      let ba=0; for(let i=0;i<mask.length;i++) if(mask[i]>0) ba++;\n      let wellPx=0; if(lastResult.wellMask) for(let wi=0;wi<lastResult.wellMask.length;wi++) if(lastResult.wellMask[wi]>0) wellPx++;\n      const sf=(wellPx>0&&lastResult.wellArea)?(lastResult.wellArea/wellPx):1;\n      lastResult.burnArea=Math.round(ba*sf);\n      lastResult.source='manual';\n    }\n    renderPreview(true);"
+    );
+
     document.open(); document.write(html); document.close();
   }catch(e){
-    m.innerHTML="שגיאה: "+e.message+"<br><small>רענן את הדף או נסה Chrome/Firefox</small>";
+    msg.textContent="שגיאה: "+e.message;
     console.error(e);
   }
 })();
