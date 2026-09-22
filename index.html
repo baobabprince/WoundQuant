@@ -17,7 +17,7 @@ body{font-family:system-ui;display:flex;align-items:center;justify-content:cente
 (async()=>{
   const msg=document.getElementById("msg");
   try{
-    const t="?v=10";
+    const t="?v=11";
     const appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html");
     if(!appRes.ok) throw new Error("app "+appRes.status);
     let boostRes=await fetch("boost.json"+t);
@@ -70,6 +70,12 @@ body{font-family:system-ui;display:flex;align-items:center;justify-content:cente
     rep(
       "updateLanguage();\ntoggleTextureControls();\n<\/script>",
       "updateLanguage();\ntoggleTextureControls();\nloadAnnotationsFromStorage();\ndocument.addEventListener('keydown',(e)=>{\n  if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT'))return;\n  const k=e.key.toLowerCase();\n  if(k==='b'&&isAnnotationMode)setDrawingTool('brush');\n  else if(k==='e'&&isAnnotationMode)setDrawingTool('eraser');\n  else if(k==='p'&&isAnnotationMode)setDrawingTool('polygon');\n  else if(k==='z'&&(e.ctrlKey||e.metaKey)){e.preventDefault();undoAnnotation();}\n  else if(k==='enter'&&isAnnotationMode&&currentDrawingTool==='polygon'&&polygonPoints.length>=3){e.preventDefault();applyPolygon();}\n});\n<\/script>"
+    );
+
+    // Fix example images: load from CDN (not on Pages master)
+    rep(
+      "const response = await fetch(`./examples/${encodedName}`);",
+      "const response = await fetch(`https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/examples/${encodedName}`);"
     );
 
     document.open(); document.write(html); document.close();
