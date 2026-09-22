@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WoundQuant – Loading...</title>
+<title>WoundQuant – Loading fixed version...</title>
 <style>
 body{font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f1f5f9}
-.box{background:#fff;border:1px solid #cbd5e1;padding:24px 32px;border-radius:12px;text-align:center;max-width:420px}
+.box{background:#fff;border:1px solid #cbd5e1;padding:24px 32px;border-radius:12px;text-align:center;max-width:480px}
 .spinner{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
@@ -14,21 +14,90 @@ body{font-family:system-ui;display:flex;align-items:center;justify-content:cente
 <body>
 <div class="box">
 <div class="spinner"></div>
-<p id="msg">טוען את WoundQuant...</p>
+<p id="msg">טוען את WoundQuant (גרסה מתוקנת)...</p>
 </div>
 <script>
 (async function() {
   const msg = document.getElementById("msg");
   try {
-    const res = await fetch("app.gz.b64");
+    const url = "https://raw.githubusercontent.com/baobabprince/WoundQuant/1c657ff/index.html";
+    const res = await fetch(url);
     if (!res.ok) throw new Error("HTTP " + res.status);
-    const b64 = (await res.text()).trim();
-    const binary = atob(b64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const ds = new DecompressionStream("gzip");
-    const stream = new Blob([bytes]).stream().pipeThrough(ds);
-    const html = await new Response(stream).text();
+    let html = await res.text();
+    if (html.length < 10000) throw new Error("File too small");
+
+    // 1) Processing resolution 350 -> 600
+    html = html.replace(
+      /\/\/ Downsample to max 350px for ultra fast local JS processing!\s*\n\s*const maxDim = 350;/,
+      "// Downsample to max 600px for better quality while keeping JS processing fast\n            const maxDim = 600;"
+    );
+    html = html.replace(
+      "let w = lastResult ? lastResult.width : 350;\n                let h = lastResult ? lastResult.height : 350;",
+      "let w = lastResult ? lastResult.width : 600;\n                let h = lastResult ? lastResult.height : 600;"
+    );
+
+    // 2) Zoom range 0.25-5.0 + pixelated when zoomed in
+    html = html.replace(
+      "currentZoomLevel = Math.max(0.5, Math.min(3.0, zoom));",
+      "currentZoomLevel = Math.max(0.25, Math.min(5.0, zoom));"
+    );
+    html = html.replace(
+      "canvas.style.transform = `scale(${currentZoomLevel})`;\n        canvas.style.transformOrigin = 'center center';",
+      "canvas.style.transform = `scale(${currentZoomLevel})`;\n        canvas.style.transformOrigin = 'center center';\n        canvas.style.imageRendering = currentZoomLevel > 1.01 ? 'pixelated' : 'auto';"
+    );
+
+    // 3) High-confluency safeguard
+    const safeguard = [
+      "            // High-confluency safeguard: weak raw signal but large claimed burn -> empty mask",
+      "            let rawSignalCount = 0;",
+      "            for (let i = 0; i < closedBinary.length; i++) {",
+      "                if (closedBinary[i] > 0 && wellMask[i] > 0) rawSignalCount++;",
+      "            }",
+      "            const rawSignalPct = wellArea > 0 ? (rawSignalCount / wellArea) * 100 : 0;",
+      "            const burnPct = wellArea > 0 ? (burnArea / wellArea) * 100 : 0;",
+      "            if (rawSignalPct < 3 && burnPct > 15) {",
+      "                finalMask.fill(0);",
+      "                burnArea = 0;",
+      "            }",
+      ""
+    ].join("\n");
+    html = html.replace(
+      "            // Scale burnArea and wellArea back up to original image resolution\n            const scaleFactor = (originalW * originalH) / (w * h);",
+      safeguard + "\n            // Scale burnArea and wellArea back up to original image resolution\n            const scaleFactor = (originalW * originalH) / (w * h);"
+    );
+
+    // Store original dimensions
+    html = html.replace(
+      "                burnArea: scaledBurnArea,\n                wellArea: scaledWellArea,\n                imgData,",
+      "                burnArea: scaledBurnArea,\n                wellArea: scaledWellArea,\n                originalWidth: originalW,\n                originalHeight: originalH,\n                imgData,"
+    );
+
+    // 4) Fix manual annotation scale factor
+    html = html.replace(
+      "            const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;\n            res.burnArea = Math.round(burnArea * scaleFactor);",
+      "            const origArea = (res.originalWidth && res.originalHeight) ? (res.originalWidth * res.originalHeight) : (res.width * res.height);\n            const procArea = res.width * res.height;\n            const scaleFactor = procArea > 0 ? (origArea / procArea) : 1;\n            res.burnArea = Math.round(burnArea * scaleFactor);"
+    );
+
+    // 5) CSV columns
+    html = html.replace(
+      'csvContent += "Series/Well,Filename,Timepoint (Hours),Confluency (%),Burn (%),Burn Area (px),Well Area (px),Normalized Burn Area to t=0\\n";',
+      'csvContent += "Series/Well,Filename,Timepoint (Hours),Confluency (%),Burn (%),Burn Area (px),Well Area (px),Normalized Burn Area to t=0,Closure (%),Closure Rate (%/h)\\n";'
+    );
+    html = html.replace(
+      'const confluency = row.confluency ? row.confluency.toFixed(2) : "0.00";\n            const burnPercent = row.burnPercent ? row.burnPercent.toFixed(2) : "0.00";\n\n            csvContent += `"${seriesKey}","${filename}",${row.hours},${confluency},${burnPercent},${row.area},${row.wellArea},${normalizedToT0}\\n`;',
+      'const confluency = (row.confluency != null) ? row.confluency.toFixed(2) : "0.00";\n            const burnPercent = (row.burnPercent != null) ? row.burnPercent.toFixed(2) : "0.00";\n            const closure = (row.closure != null) ? row.closure.toFixed(2) : "0.00";\n            const rate = (row.rate != null) ? row.rate.toFixed(4) : "0.0000";\n\n            csvContent += `"${seriesKey}","${filename}",${row.hours},${confluency},${burnPercent},${row.area},${row.wellArea},${normalizedToT0},${closure},${rate}\\n`;'
+    );
+
+    // 6) Clearer warning text
+    html = html.replace(
+      "אזהרה: סדרה זו מכילה דגימה עם אחוז כוויה מעל 60% או שטח כוויה קטן מ-10% בזמן 0!",
+      "אזהרה: סדרה זו מכילה דגימה עם כוויה >60%, או שטח כוויה קטן מ-10% ב-t=0 (בסיס בעייתי לנירמול)."
+    );
+    html = html.replace(
+      "Warning: This series contains a sample with over 60% burn or under 10% burn at t=0!",
+      "Warning: This series has a sample with >60% burn, or <10% burn area at t=0 (weak baseline for normalization)."
+    );
+
     document.open();
     document.write(html);
     document.close();
