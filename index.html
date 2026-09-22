@@ -1,190 +1,22 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WoundQuant JS — ML & Advanced Texture Analysis</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <style>
-        :root {
-            --bg-color: #f1f5f9;
-            --panel-bg: #ffffff;
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --accent: #059669;
-            --accent-hover: #047857;
-            --border-color: #cbd5e1;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-        }
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background: var(--bg-color);
-            margin: 0;
-            padding: 20px;
-            color: var(--text-main);
-            line-height: 1.4;
-        }
-        .header-section {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 1600px;
-            margin: 0 auto 20px auto;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        h1 { margin: 0; font-size: 1.6rem; color: var(--text-main); font-weight: 800; }
-        .lang-btn {
-            background: #ffffff;
-            border: 1px solid var(--border-color);
-            padding: 6px 14px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-        .lang-btn:hover { background: #f8fafc; }
-        .main-grid {
-            display: grid;
-            grid-template-columns: 340px 1fr;
-            gap: 20px;
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-        @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
-        .panel {
-            background: var(--panel-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-        }
-        .step-btn, button.step-btn {
-            background: #f8fafc;
-            border: 1px solid var(--border-color);
-            padding: 8px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            margin: 2px;
-        }
-        .step-btn:hover { background: #e2e8f0; }
-        .primary-btn {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-            font-weight: 600;
-        }
-        .primary-btn:hover { background: var(--primary-hover); }
-        .canvas-wrap {
-            position: relative;
-            overflow: auto;
-            max-height: 70vh;
-            background: #0f172a;
-            border-radius: 8px;
-            text-align: center;
-        }
-        #mainCanvas { max-width: 100%; cursor: crosshair; }
-        .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; align-items: center; }
-        .chart-box { height: 280px; }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
-        label { font-size: 0.85rem; color: var(--text-muted); }
-        input, select { padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); }
-        .file-list { max-height: 180px; overflow-y: auto; font-size: 0.8rem; }
-        .hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
-        .results-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-        .results-table th, .results-table td { border: 1px solid #e2e8f0; padding: 4px 6px; text-align: center; }
-        .results-table th { background: #f1f5f9; }
-    </style>
-</head>
-<body>
-<div class="header-section">
-    <h1>🔬 WoundQuant</h1>
-    <div>
-        <button class="lang-btn" onclick="setLanguage('he')">עברית</button>
-        <button class="lang-btn" onclick="setLanguage('en')">English</button>
-    </div>
-</div>
-
-<div class="main-grid">
-    <div class="panel" id="controlsPanel">
-        <h3 id="titleUpload">📁 העלאת תמונות</h3>
-        <input type="file" id="fileInput" multiple accept="image/*">
-        <div class="file-list" id="fileList"></div>
-        <div class="hint" id="hintSeries">קבצים מאותו באר / סדרה — שמות עם זמן (t0, 24h...)</div>
-
-        <hr style="margin: 16px 0; border: none; border-top: 1px solid #e2e8f0;">
-
-        <h3 id="titleParams">⚙️ פרמטרים</h3>
-        <div style="display:grid;gap:8px;">
-            <label>Crop margin (px): <input type="number" id="cropMargin" value="10" min="0" max="100"></label>
-            <label>Texture filter: <select id="textureFilter"><option value="none">None</option><option value="std">Std</option><option value="entropy">Entropy</option></select></label>
-            <label>Texture radius: <input type="number" id="textureRadius" value="3" min="1" max="15"></label>
-            <label>Threshold: <select id="threshMethod"><option value="otsu">Otsu</option><option value="adaptive">Adaptive</option></select></label>
-            <label><input type="checkbox" id="invertThresh"> Invert threshold</label>
-            <label>Post-process: <select id="postProcess"><option value="none">None</option><option value="open">Open</option><option value="close">Close</option><option value="openclose">Open+Close</option></select></label>
-            <label>Closing radius: <input type="number" id="closingRad" value="2" min="0" max="20"></label>
-            <label><input type="checkbox" id="useHull"> Convex hull</label>
-        </div>
-
-        <div class="toolbar" style="margin-top:14px;">
-            <button class="step-btn primary-btn" onclick="runAnalysis()" id="btnRun">▶ הרץ ניתוח</button>
-            <button class="step-btn" onclick="exportCSV()" id="btnExport">📊 ייצוא CSV</button>
-        </div>
-
-        <hr style="margin: 16px 0; border: none; border-top: 1px solid #e2e8f0;">
-
-        <h3 id="titleAnnot">✏️ תיוג ידני</h3>
-        <div class="toolbar">
-            <button class="step-btn" onclick="toggleAnnotationMode()" id="btnAnnotMode">מצב תיוג</button>
-            <button class="step-btn" onclick="setDrawingTool('brush')" id="btnBrush">🖌️ מברשת</button>
-            <button class="step-btn" onclick="setDrawingTool('eraser')" id="btnEraser">🧹 מחק</button>
-            <button class="step-btn" onclick="setDrawingTool('polygon')" id="btnPolygon">⬡ פוליגון</button>
-            <button class="step-btn" onclick="applyPolygon()" style="background: var(--primary); color: white; border-color: var(--primary); padding: 4px 10px; font-size: 0.75rem;">✅ סגור ומלא פוליגון</button>
-            <button class="step-btn" id="btnUndoAnnotation" onclick="undoAnnotation()" style="padding: 4px 10px; font-size: 0.75rem;" title="Ctrl+Z">↩️ בטל</button>
-            <button class="step-btn" onclick="undoPolygonVertex()" style="padding: 4px 8px; font-size: 0.75rem;">↩️ בטל נקודה</button>
-            <button class="step-btn" onclick="clearManualMask()">נקה מסכה</button>
-        </div>
-        <div class="hint" id="hintKeys">מקשים: B מברשת | E מחק | P פוליגון | Enter סגור | Ctrl+Z בטל</div>
-        <label>גודל מברשת: <input type="range" id="brushSize" min="2" max="60" value="15" oninput="brushSize=this.value"></label>
-
-        <hr style="margin: 16px 0; border: none; border-top: 1px solid #e2e8f0;">
-        <div id="metricsBox" style="font-size:0.9rem;"></div>
-    </div>
-
-    <div class="panel">
-        <div class="toolbar">
-            <button class="step-btn" onclick="zoomBy(1.2)">🔍+</button>
-            <button class="step-btn" onclick="zoomBy(1/1.2)">🔍−</button>
-            <button class="step-btn" onclick="resetZoom()">1:1</button>
-            <span id="zoomLabel" style="font-size:0.8rem;color:var(--text-muted);">100%</span>
-        </div>
-        <div class="canvas-wrap">
-            <canvas id="mainCanvas"></canvas>
-        </div>
-        <div id="navThumbs" style="display:flex;gap:8px;overflow-x:auto;margin-top:10px;"></div>
-
-        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
-        <div class="grid-2">
-            <div>
-                <h4 id="titleChartClosure">📈 אחוז סגירת הכוויה לאורך זמן</h4>
-                <div class="chart-box"><canvas id="chartClosure"></canvas></div>
-            </div>
-            <div>
-                <h4 id="titleChartRate">⚡ קצב סגירה רגעי (%/h)</h4>
-                <div class="chart-box"><canvas id="chartRate"></canvas></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<footer style="margin-top: 40px; text-align: center; padding: 25px; border-top: 1px solid #cbd5e1; font-size: 0.95rem; color: var(--text-muted); background: #ffffff; border-radius: 12px 12px 0 0; max-width: 1600px; margin-left: auto; margin-right: auto;">
-    <span id="footerText">WoundQuant JS © 2026</span> |
-    <a id="githubLink" href="https://github.com/baobabprince/WoundQuant" target="_blank" style="color: var(--primary); text-decoration: none; font-weight: 700;">מאגר ה-GitHub</a>
-</footer>
-
-<script src="js/app.js"></script>
-</body>
-</html>
+<html lang="he" dir="rtl"><head><meta charset="UTF-8"><title>WoundQuant</title>
+<style>body{font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f1f5f9}
+.box{background:#fff;border:1px solid #cbd5e1;padding:24px;border-radius:12px;text-align:center;max-width:420px}
+.spinner{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:s .8s linear infinite;margin:0 auto 12px}@keyframes s{to{transform:rotate(360deg)}}</style>
+</head><body><div class="box"><div class="spinner"></div><p id="m">טוען WoundQuant...</p></div>
+<script>
+(async()=>{
+  try{
+    const t="?t="+Date.now();
+    const [a,b]=await Promise.all([
+      fetch("app_b64_1.txt"+t).then(r=>{if(!r.ok)throw new Error("p1 "+r.status);return r.text()}),
+      fetch("app_b64_2.txt"+t).then(r=>{if(!r.ok)throw new Error("p2 "+r.status);return r.text()})
+    ]);
+    const bin=Uint8Array.from(atob(a+b),c=>c.charCodeAt(0));
+    const ds=new DecompressionStream("gzip");
+    const stream=new Response(bin).body.pipeThrough(ds);
+    const html=await new Response(stream).text();
+    document.open(); document.write(html); document.close();
+  }catch(e){ document.getElementById("m").textContent="שגיאה: "+e.message; console.error(e); }
+})();
+</script></body></html>
