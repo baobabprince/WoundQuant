@@ -18,13 +18,12 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
 (async()=>{
   var msg=document.getElementById("msg");
   try{
-    // Clear ALL old caches that may cause residual spinner / broken state
     try{
       var keys=["wq_app_v13","wq_app_v14","wq_app_v15","wq_app_v19","wq_full_v15","wq_full_v16","wq_full_v17","wq_full_v18"];
       keys.forEach(function(k){sessionStorage.removeItem(k);});
     }catch(e){}
 
-    var t="?v=21";
+    var t="?v=22";
     var appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"+t);
     if(!appRes.ok) throw new Error("app "+appRes.status);
     var boostRes=await fetch("boost.json"+t);
@@ -36,7 +35,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
 
     function rep(a,b){ if(a&&b&&html.indexOf(a)>=0) html=html.replace(a,b); }
 
-    rep("const maxDim = 350;","const maxDim = 450;");
+    rep("const maxDim = 350;","const maxDim = 280;");
     rep("Math.max(0.5, Math.min(3.0, zoom))","Math.max(0.25, Math.min(5.0, zoom))");
     rep("canvas.style.transformOrigin = 'center center';",
         "canvas.style.transformOrigin = 'center center';\n        canvas.style.imageRendering = currentZoomLevel > 1.01 ? 'pixelated' : 'auto';");
@@ -79,31 +78,56 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
       "updateLanguage();\ntoggleTextureControls();\nloadAnnotationsFromStorage();\ndocument.addEventListener('keydown',(e)=>{\n  if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT'))return;\n  const k=e.key.toLowerCase();\n  if(k==='b'&&isAnnotationMode)setDrawingTool('brush');\n  else if(k==='e'&&isAnnotationMode)setDrawingTool('eraser');\n  else if(k==='p'&&isAnnotationMode)setDrawingTool('polygon');\n  else if(k==='z'&&(e.ctrlKey||e.metaKey)){e.preventDefault();undoAnnotation();}\n  else if(k==='enter'&&isAnnotationMode&&currentDrawingTool==='polygon'&&polygonPoints.length>=3){e.preventDefault();applyPolygon();}\n});\n<\/script>"
     );
 
-    // Parallel examples from CDN
     rep(
       "    filesMap.clear();\n    let loadedCount = 0;\n\n    for (const fileName of exampleFilenames) {\n        try {\n            const encodedName = encodeURIComponent(fileName);\n            const response = await fetch(`./examples/${encodedName}`);\n            if (!response.ok) continue;\n            const blob = await response.blob();\n            const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });\n\n            const match = fileName.match(FILENAME_REGEX);\n            if (match) {\n                const { well, site, days, hours, mins } = match.groups;\n                const totalHours = parseInt(days)*24 + parseInt(hours) + parseInt(mins)/60;\n                const seriesKey = `${well}_Site${site}`;\n\n                if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n                filesMap.get(seriesKey).push({ file, hours: totalHours, well, site });\n                loadedCount++;\n            }\n        } catch (e) {\n            console.warn(`Could not load ./examples/${fileName}`, e);\n        }\n    }",
       "    filesMap.clear();\n    const CDN='https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/examples/';\n    const results=await Promise.all(exampleFilenames.map(async(fileName)=>{\n      try{\n        const r=await fetch(CDN+encodeURIComponent(fileName));\n        if(!r.ok)return null;\n        const blob=await r.blob();\n        return new File([blob],fileName,{type:blob.type||'image/jpeg'});\n      }catch(e){return null;}\n    }));\n    let loadedCount=0;\n    for(const file of results){\n      if(!file)continue;\n      const match=file.name.match(FILENAME_REGEX);\n      if(!match)continue;\n      const {well,site,days,hours,mins}=match.groups;\n      const totalHours=parseInt(days)*24+parseInt(hours)+parseInt(mins)/60;\n      const seriesKey=`${well}_Site${site}`;\n      if(!filesMap.has(seriesKey))filesMap.set(seriesKey,[]);\n      filesMap.get(seriesKey).push({file,hours:totalHours,well,site});\n      loadedCount++;\n    }"
     );
 
-    // Accept ANY image filename
     rep(
       "    files.forEach(file => {\n        const match = file.name.match(FILENAME_REGEX);\n        if (match) {\n            const { well, site, days, hours, mins } = match.groups;\n            const totalHours = parseInt(days)*24 + parseInt(hours) + parseInt(mins)/60;\n            const seriesKey = `${well}_Site${site}`;\n\n            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n            filesMap.get(seriesKey).push({ file, hours: totalHours, well, site });\n        }\n    });\n\n    statusBadge.innerText = dict.loadedManual(files.length);\n    populateSeriesDropdown();",
       "    let matched = 0, unmatched = 0;\n    files.forEach(function(file) {\n        const match = file.name.match(FILENAME_REGEX);\n        if (match) {\n            const g = match.groups;\n            const totalHours = parseInt(g.days)*24 + parseInt(g.hours) + parseInt(g.mins)/60;\n            const seriesKey = g.well + '_Site' + g.site;\n            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n            filesMap.get(seriesKey).push({ file: file, hours: totalHours, well: g.well, site: g.site });\n            matched++;\n        } else {\n            if (!filesMap.has('Upload')) filesMap.set('Upload', []);\n            filesMap.get('Upload').push({ file: file, hours: unmatched, well: 'X', site: '1' });\n            unmatched++;\n        }\n    });\n    statusBadge.innerText = (matched + unmatched > 0)\n      ? (dict.loadedManual(matched + unmatched) + (unmatched ? (' (' + unmatched + ' ללא תבנית שם)') : ''))\n      : (currentLang==='he' ? 'לא נטענו קבצים' : 'No files loaded');\n    populateSeriesDropdown();"
     );
 
-    // Auto-select first series
     rep(
       "function populateSeriesDropdown() {\n    filesMap.forEach(arr => arr.sort((a,b) => a.hours - b.hours));\n    selectSeries.innerHTML = '';\n    filesMap.forEach((_, key) => {\n        const opt = document.createElement('option');\n        opt.value = key;\n        opt.innerText = key;\n        selectSeries.appendChild(opt);\n    });\n    if (filesMap.size > 0) updateTimeDropdown();\n}",
       "function populateSeriesDropdown() {\n    filesMap.forEach(function(arr){ arr.sort(function(a,b){ return a.hours - b.hours; }); });\n    selectSeries.innerHTML = '';\n    filesMap.forEach(function(_, key) {\n        var opt = document.createElement('option');\n        opt.value = key;\n        opt.innerText = key;\n        selectSeries.appendChild(opt);\n    });\n    if (filesMap.size > 0) { selectSeries.selectedIndex = 0; updateTimeDropdown(); }\n}"
     );
 
-    // Processing status
     rep(
       "        res = await processImageFile(item, cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull, prevMaskSmall);\n        res.seriesKey = seriesKey;\n        res.hours = timeVal;\n        lastResult = res;",
       "        try {\n          var sb = document.getElementById('statusBadge');\n          if (sb) sb.innerText = (typeof currentLang!=='undefined'&&currentLang==='he') ? 'מעבד תמונה…' : 'Processing…';\n          res = await processImageFile(item, cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull, prevMaskSmall);\n          res.seriesKey = seriesKey;\n          res.hours = timeVal;\n          lastResult = res;\n          if (sb) sb.innerText = (typeof currentLang!=='undefined'&&currentLang==='he') ? 'מוכן' : 'Ready';\n        } catch (err) {\n          console.error(err);\n          var sb2 = document.getElementById('statusBadge');\n          if (sb2) sb2.innerText = 'שגיאה: ' + (err && err.message ? err.message : err);\n          return;\n        }"
     );
 
-    // Remove boot overlay, then replace document completely
+    // SPEED patches
+    rep(
+      '<option value="entropy" selected>אנטרופיה מקומית (Local Entropy)</option>',
+      '<option value="entropy">אנטרופיה מקומית (Local Entropy)</option>'
+    );
+    rep(
+      '<option value="variance">שונות מקומית (Local Variance)</option>',
+      '<option value="variance" selected>שונות מקומית (Local Variance)</option>'
+    );
+    rep(
+      "if (textureFilter === 'entropy') {\n                processedGray = computeLocalEntropy(sharpenedGray, w, h, textureRadius);\n            } else if (textureFilter === 'variance') {\n                processedGray = computeLocalVariance(sharpenedGray, w, h, textureRadius);\n            }",
+      "var tr = Math.min(textureRadius|0, textureFilter==='entropy' ? 3 : 6);\n            if (textureFilter === 'entropy') {\n                processedGray = computeLocalEntropy(sharpenedGray, w, h, tr);\n            } else if (textureFilter === 'variance') {\n                processedGray = computeLocalVariance(sharpenedGray, w, h, tr);\n            }"
+    );
+    rep(
+      "ChanVeseJS(processedGray, wellMask, w, h, initMask, 40, 2, 1.0, 1.0);",
+      "ChanVeseJS(processedGray, wellMask, w, h, initMask, 12, 2, 1.0, 1.0);"
+    );
+    rep(
+      "let burnSeed = erode(closedBinary, w, h, 12);",
+      "let burnSeed = erode(closedBinary, w, h, 5);"
+    );
+    rep(
+      "const img = new Image();\n        img.onload = () => {",
+      "const img = new Image();\n        img.onerror = () => { try{URL.revokeObjectURL(img.src);}catch(e){} resolve({error:true, burnArea:0, wellArea:1, finalMask:new Uint8Array(1), wellMask:new Uint8Array(1), width:1, height:1, imgData:null, fullImg:null}); };\n        img.onload = () => {"
+    );
+    rep(
+      "const dilatedPrev = dilate(prevMaskSmall, w, h, 8);",
+      "const dilatedPrev = dilate(prevMaskSmall, w, h, 4);"
+    );
+
     var boot=document.getElementById('boot');
     if(boot) boot.remove();
     document.open();
