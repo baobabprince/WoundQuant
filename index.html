@@ -14,85 +14,20 @@ body{font-family:system-ui;display:flex;align-items:center;justify-content:cente
 <body>
 <div class="box"><div class="spinner"></div><p id="msg">טוען את WoundQuant...</p></div>
 <script>
-(async function() {
-  const msg = document.getElementById("msg");
-  try {
-    const res = await fetch("https://raw.githubusercontent.com/baobabprince/WoundQuant/1c657ff/index.html?t=" + Date.now());
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    let html = await res.text();
-    if (html.length < 10000) throw new Error("too small");
-
-    // FIX 1: Correct scaleFactor after manual annotation
-    // Old (broken): imgData is same size as processing canvas → scaleFactor always 1
-    // New: scale by ratio of stored wellArea to wellMask pixel count
-    const oldScale =
-      "            const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;\n" +
-      "            res.burnArea = Math.round(burnArea * scaleFactor);";
-    const newScale =
-      "            let wellPx = 0;\n" +
-      "            if (res.wellMask) {\n" +
-      "                for (let wi = 0; wi < res.wellMask.length; wi++) if (res.wellMask[wi] > 0) wellPx++;\n" +
-      "            }\n" +
-      "            const scaleFactor = (wellPx > 0 && res.wellArea) ? (res.wellArea / wellPx) : 1;\n" +
-      "            res.burnArea = Math.round(burnArea * scaleFactor);\n" +
-      "            if (lastResult) lastResult.burnArea = res.burnArea;";
-    if (!html.includes(oldScale)) throw new Error("scaleFactor block not found");
-    html = html.replace(oldScale, newScale);
-
-    // FIX 2: applyPolygon — replace mask with polygon only (true wound), then force refresh
-    const oldApply =
-      "    for (let i = 0; i < mask.length; i++) {\n" +
-      "        const idx = i * 4;\n" +
-      "        if (data[idx] > 128) {\n" +
-      "            mask[i] = 255;\n" +
-      "        }\n" +
-      "    }\n\n" +
-      "    const key = getActiveImageKey();\n" +
-      "    if (key) {\n" +
-      "        if (!savedPolygons.has(key)) {\n" +
-      "            savedPolygons.set(key, []);\n" +
-      "        }\n" +
-      "        savedPolygons.get(key).push([...polygonPoints]);\n" +
-      "    }\n\n" +
-      "    polygonPoints = [];\n" +
-      "    renderPreview(true);";
-    const newApply =
-      "    // Replace mask with polygon region only (manual ground truth)\n" +
-      "    mask.fill(0);\n" +
-      "    for (let i = 0; i < mask.length; i++) {\n" +
-      "        const idx = i * 4;\n" +
-      "        if (data[idx] > 128) {\n" +
-      "            mask[i] = 255;\n" +
-      "        }\n" +
-      "    }\n\n" +
-      "    const key = getActiveImageKey();\n" +
-      "    if (key) {\n" +
-      "        if (!savedPolygons.has(key)) {\n" +
-      "            savedPolygons.set(key, []);\n" +
-      "        }\n" +
-      "        savedPolygons.get(key).push([...polygonPoints]);\n" +
-      "    }\n\n" +
-      "    polygonPoints = [];\n" +
-      "    if (lastResult) {\n" +
-      "        lastResult.finalMask.set(mask);\n" +
-      "        let ba = 0;\n" +
-      "        for (let i = 0; i < mask.length; i++) if (mask[i] > 0) ba++;\n" +
-      "        let wellPx = 0;\n" +
-      "        if (lastResult.wellMask) {\n" +
-      "            for (let wi = 0; wi < lastResult.wellMask.length; wi++) if (lastResult.wellMask[wi] > 0) wellPx++;\n" +
-      "        }\n" +
-      "        const sf = (wellPx > 0 && lastResult.wellArea) ? (lastResult.wellArea / wellPx) : 1;\n" +
-      "        lastResult.burnArea = Math.round(ba * sf);\n" +
-      "    }\n" +
-      "    renderPreview(true);";
-    if (!html.includes(oldApply)) throw new Error("applyPolygon block not found");
-    html = html.replace(oldApply, newApply);
-
-    document.open();
-    document.write(html);
-    document.close();
-  } catch (e) {
-    msg.textContent = "שגיאה: " + e.message;
+(async function(){
+  const msg=document.getElementById("msg");
+  try{
+    const res=await fetch("app.gz.b64?t="+Date.now());
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const b64=(await res.text()).trim();
+    const bin=atob(b64);
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    const html=await new Response(stream).text();
+    document.open(); document.write(html); document.close();
+  }catch(e){
+    msg.textContent="שגיאה: "+e.message+". נסה Chrome/Edge/Firefox עדכני.";
     console.error(e);
   }
 })();
