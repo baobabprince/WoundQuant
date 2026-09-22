@@ -1,0 +1,9 @@
+            // Recalculate burn area based on the manual mask!
+            let burnArea = 0;
+            for (let i = 0; i < res.finalMask.length; i++) {
+                if (res.finalMask[i] > 0) {
+                    burnArea++;
+                }
+            }
+            const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;
+            res.burnArea = Math.round(burnArea * scaleFactor);

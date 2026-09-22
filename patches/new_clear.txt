@@ -1,0 +1,14 @@
+function clearManualMask() {
+    if (!lastResult) return;
+    pushAnnotationUndo();
+    const mask = getActiveManualMask(lastResult);
+    if (mask) mask.fill(0);
+    const key = getActiveImageKey();
+    if (key) {
+        savedPolygons.delete(key);
+        annotationSource.set(key, 'manual');
+    }
+    polygonPoints = [];
+    persistAnnotations();
+    renderPreview(true);
+}

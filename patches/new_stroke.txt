@@ -1,0 +1,29 @@
+function applyDrawingStroke(cx, cy) {
+    if (!lastResult) return;
+    const mask = getActiveManualMask(lastResult);
+    if (!mask) return;
+
+    if (!isDrawing || !window._strokeUndoPushed) {
+        pushAnnotationUndo();
+        window._strokeUndoPushed = true;
+    }
+
+    const w = lastResult.width;
+    const h = lastResult.height;
+    const r2 = brushSize * brushSize;
+    const val = currentDrawingTool === 'brush' ? 255 : 0;
+
+    for (let dy = -brushSize; dy <= brushSize; dy++) {
+        const ny = cy + dy;
+        if (ny < 0 || ny >= h) continue;
+        const rowOffset = ny * w;
+        for (let dx = -brushSize; dx <= brushSize; dx++) {
+            const nx = cx + dx;
+            if (nx < 0 || nx >= w) continue;
+            if (dx*dx + dy*dy <= r2) {
+                mask[rowOffset + nx] = val;
+            }
+        }
+    }
+    renderPreview(true);
+}

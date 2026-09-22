@@ -1,0 +1,13 @@
+            // Recalculate burn area based on the manual mask (correct scale)
+            let burnArea = 0;
+            for (let i = 0; i < res.finalMask.length; i++) {
+                if (res.finalMask[i] > 0) burnArea++;
+            }
+            let wellPx = 0;
+            if (res.wellMask) {
+                for (let wi = 0; wi < res.wellMask.length; wi++) if (res.wellMask[wi] > 0) wellPx++;
+            }
+            const scaleFactor = (wellPx > 0 && res.wellArea) ? (res.wellArea / wellPx) : 1;
+            res.burnArea = Math.round(burnArea * scaleFactor);
+            res.source = 'manual';
+            if (lastResult) lastResult.burnArea = res.burnArea;

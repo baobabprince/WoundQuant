@@ -1,0 +1,13 @@
+function clearManualMask() {
+    if (!lastResult) return;
+    const mask = getActiveManualMask(lastResult);
+    if (mask) {
+        mask.fill(0);
+    }
+    const key = getActiveImageKey();
+    if (key) {
+        savedPolygons.delete(key);
+    }
+    polygonPoints = [];
+    renderPreview(true);
+}

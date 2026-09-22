@@ -1,0 +1,12 @@
+function onDrawingEnd() {
+    if (isDrawing && window._strokeUndoPushed) {
+        const key = getActiveImageKey();
+        if (key) annotationSource.set(key, 'manual');
+        persistAnnotations();
+        if (lastResult && manualMasks.has(key || '')) {
+            renderPreview(true);
+        }
+    }
+    isDrawing = false;
+    window._strokeUndoPushed = false;
+}
