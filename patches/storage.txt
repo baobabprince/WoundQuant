@@ -1,0 +1,86 @@
+// --- Annotation persistence (localStorage) & Undo ---
+function maskToBase64(mask) {
+    let bin = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < mask.length; i += chunk) {
+        bin += String.fromCharCode.apply(null, mask.subarray(i, Math.min(i + chunk, mask.length)));
+    }
+    return btoa(bin);
+}
+function base64ToMask(b64, length) {
+    const bin = atob(b64);
+    const mask = new Uint8Array(length);
+    for (let i = 0; i < Math.min(bin.length, length); i++) mask[i] = bin.charCodeAt(i);
+    return mask;
+}
+function persistAnnotations() {
+    try {
+        const payload = { masks: {}, polygons: {}, sources: {}, savedAt: Date.now() };
+        for (const [key, mask] of manualMasks.entries()) {
+            payload.masks[key] = { data: maskToBase64(mask), length: mask.length };
+        }
+        for (const [key, polys] of savedPolygons.entries()) {
+            payload.polygons[key] = polys;
+        }
+        for (const [key, src] of annotationSource.entries()) {
+            payload.sources[key] = src;
+        }
+        localStorage.setItem(ANNOTATION_STORAGE_KEY, JSON.stringify(payload));
+    } catch (e) {
+        console.warn('Failed to persist annotations', e);
+    }
+}
+function loadAnnotationsFromStorage() {
+    try {
+        const raw = localStorage.getItem(ANNOTATION_STORAGE_KEY);
+        if (!raw) return;
+        const payload = JSON.parse(raw);
+        if (payload.masks) {
+            for (const [key, obj] of Object.entries(payload.masks)) {
+                if (obj && obj.data && obj.length) {
+                    manualMasks.set(key, base64ToMask(obj.data, obj.length));
+                }
+            }
+        }
+        if (payload.polygons) {
+            for (const [key, polys] of Object.entries(payload.polygons)) {
+                savedPolygons.set(key, polys);
+            }
+        }
+        if (payload.sources) {
+            for (const [key, src] of Object.entries(payload.sources)) {
+                annotationSource.set(key, src);
+            }
+        }
+        console.log('Loaded annotations from localStorage:', manualMasks.size, 'masks');
+    } catch (e) {
+        console.warn('Failed to load annotations', e);
+    }
+}
+function clearStoredAnnotations() {
+    manualMasks.clear();
+    savedPolygons.clear();
+    annotationSource.clear();
+    annotationUndoStack = [];
+    localStorage.removeItem(ANNOTATION_STORAGE_KEY);
+    renderPreview(true);
+}
+function pushAnnotationUndo() {
+    const key = getActiveImageKey();
+    if (!key || !manualMasks.has(key)) return;
+    const mask = manualMasks.get(key);
+    annotationUndoStack.push({ key, maskCopy: new Uint8Array(mask) });
+    if (annotationUndoStack.length > MAX_UNDO) annotationUndoStack.shift();
+}
+function undoAnnotation() {
+    if (annotationUndoStack.length === 0) {
+        alert(currentLang === 'he' ? 'אין פעולות לביטול' : 'Nothing to undo');
+        return;
+    }
+    const last = annotationUndoStack.pop();
+    manualMasks.set(last.key, last.maskCopy);
+    annotationSource.set(last.key, 'manual');
+    persistAnnotations();
+    renderPreview(true);
+}
+
