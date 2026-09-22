@@ -1,1 +1,67 @@
-LOADING_FROM_FILE
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WoundQuant</title>
+<style>
+body{font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f1f5f9}
+.box{background:#fff;border:1px solid #cbd5e1;padding:24px;border-radius:12px;text-align:center;max-width:420px}
+.spinner{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:s .8s linear infinite;margin:0 auto 12px}@keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="box"><div class="spinner"></div><p id="msg">טוען WoundQuant...</p></div>
+<script>
+(async function(){
+  const msg=document.getElementById("msg");
+  try{
+    const [htmlRes, patchRes]=await Promise.all([
+      fetch("https://raw.githubusercontent.com/baobabprince/WoundQuant/1c657ff/index.html?t="+Date.now()),
+      fetch("patches.json?t="+Date.now())
+    ]);
+    if(!htmlRes.ok) throw new Error("app HTTP "+htmlRes.status);
+    if(!patchRes.ok) throw new Error("patches HTTP "+patchRes.status);
+    let html=await htmlRes.text();
+    const P=await patchRes.json();
+    if(html.length<10000) throw new Error("too small");
+
+    function rep(a,b,label){
+      if(!a||!b) return;
+      if(!html.includes(a)) throw new Error("patch miss: "+label);
+      html=html.replace(a,b);
+    }
+
+    rep("            // Downsample to max 350px for ultra fast local JS processing!\n            const maxDim = 350;",
+        "            // Downsample to max 600px for better quality\n            const maxDim = 600;","maxDim");
+    rep("    currentZoomLevel = Math.max(0.5, Math.min(3.0, zoom));",
+        "    currentZoomLevel = Math.max(0.25, Math.min(5.0, zoom));","zoom");
+    rep("        canvas.style.transform = `scale(${currentZoomLevel})`;\n        canvas.style.transformOrigin = 'center center';",
+        "        canvas.style.transform = `scale(${currentZoomLevel})`;\n        canvas.style.transformOrigin = 'center center';\n        canvas.style.imageRendering = currentZoomLevel > 1.01 ? 'pixelated' : 'auto';","pix");
+    rep("let manualMasks = new Map(); // key: seriesKey_hours, value: Uint8Array\nlet savedPolygons = new Map(); // key: seriesKey_hours, value: Array of polygon points\nlet isAnnotationMode = false;\nlet currentDrawingTool = 'brush'; // 'brush', 'eraser', 'polygon'\nlet brushSize = 15;\nlet polygonPoints = []; // [{x, y}, ...]\nlet isDrawing = false;\nlet currentZoomLevel = 1.0;",
+        "let manualMasks = new Map();\nlet savedPolygons = new Map();\nlet annotationSource = new Map();\nlet isAnnotationMode = false;\nlet currentDrawingTool = 'brush';\nlet brushSize = 15;\nlet polygonPoints = [];\nlet isDrawing = false;\nlet currentZoomLevel = 1.0;\nlet annotationUndoStack = [];\nconst ANNOTATION_STORAGE_KEY = 'woundquant_annotations_v1';\nconst MAX_UNDO = 30;","state");
+    rep(P.old_clean, P.new_clean, "high-conf");
+    rep(P.old_sf, P.new_sf, "scale");
+    rep("function getActiveManualMask(res) {", P.storage + "function getActiveManualMask(res) {", "storage");
+    rep(P.old_apply, P.new_apply, "apply");
+    rep(P.old_clear, P.new_clear, "clear");
+    rep(P.old_stroke, P.new_stroke, "stroke");
+    rep(P.old_end, P.new_end, "end");
+    rep('csvContent += "Series/Well,Filename,Timepoint (Hours),Confluency (%),Burn (%),Burn Area (px),Well Area (px),Normalized Burn Area to t=0\\n";',
+        'csvContent += "Series/Well,Filename,Timepoint (Hours),Confluency (%),Burn (%),Burn Area (px),Well Area (px),Normalized Burn Area to t=0,Closure (%),Closure Rate (%/h),Source\\n";',"csv");
+    rep("                    const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;\n                    res.burnArea = Math.round(mBurnArea * scaleFactor);",
+        "                    let wellPxB = 0;\n                    if (res.wellMask) { for (let wi = 0; wi < res.wellMask.length; wi++) if (res.wellMask[wi] > 0) wellPxB++; }\n                    const scaleFactor = (wellPxB > 0 && res.wellArea) ? (res.wellArea / wellPxB) : 1;\n                    res.burnArea = Math.round(mBurnArea * scaleFactor);\n                    res.source = 'manual';","batch");
+    rep('onclick="applyPolygon()" style="background: var(--primary); color: white; border-color: var(--primary); padding: 4px 10px; font-size: 0.75rem;">✅ סגור ומלא פוליגון</button>',
+        'onclick="applyPolygon()" style="background: var(--primary); color: white; border-color: var(--primary); padding: 4px 10px; font-size: 0.75rem;">✅ סגור ומלא פוליגון</button>\n                                <button class="step-btn" onclick="undoAnnotation()" style="padding: 4px 10px; font-size: 0.75rem;" title="Ctrl+Z">↩️ בטל</button>',"btn");
+    rep("updateLanguage();\ntoggleTextureControls();\n</script>",
+        "updateLanguage();\ntoggleTextureControls();\nloadAnnotationsFromStorage();\ndocument.addEventListener('keydown', (e) => {\n  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;\n  const k = e.key.toLowerCase();\n  if (k === 'b' && isAnnotationMode) setDrawingTool('brush');\n  else if (k === 'e' && isAnnotationMode) setDrawingTool('eraser');\n  else if (k === 'p' && isAnnotationMode) setDrawingTool('polygon');\n  else if (k === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); undoAnnotation(); }\n  else if (k === 'enter' && isAnnotationMode && currentDrawingTool === 'polygon' && polygonPoints.length >= 3) { e.preventDefault(); applyPolygon(); }\n});\n</script>","init");
+
+    document.open(); document.write(html); document.close();
+  } catch(e) {
+    msg.textContent = "שגיאה: " + e.message;
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>
