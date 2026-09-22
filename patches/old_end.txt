@@ -1,0 +1,3 @@
+function onDrawingEnd() {
+    isDrawing = false;
+}
