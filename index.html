@@ -22,9 +22,9 @@ body{display:flex;align-items:center;justify-content:center;background:#f1f5f9}
     try{sessionStorage.removeItem("wq_app_v13");sessionStorage.removeItem("wq_app_v14");sessionStorage.removeItem("wq_app_v15");}catch(e){}
     let html=sessionStorage.getItem(KEY);
     if(!html||html.length<50000){
-      const r=await fetch("app.gz.b64?v=15");
-      if(!r.ok) throw new Error("fetch "+r.status);
-      const b64=await r.text();
+      const [r1,r2]=await Promise.all([fetch("app.p1.b64?v=15"),fetch("app.p2.b64?v=15")]);
+      if(!r1.ok||!r2.ok) throw new Error("fetch "+r1.status+"/"+r2.status);
+      const b64=(await r1.text())+(await r2.text());
       const bin=atob(b64);
       const bytes=new Uint8Array(bin.length);
       for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
