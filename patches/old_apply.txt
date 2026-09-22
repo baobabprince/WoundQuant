@@ -1,0 +1,43 @@
+function applyPolygon() {
+    if (polygonPoints.length < 3 || !lastResult) return;
+    const mask = getActiveManualMask(lastResult);
+    if (!mask) return;
+
+    const w = lastResult.width;
+    const h = lastResult.height;
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = w;
+    tempCanvas.height = h;
+    const tempCtx = tempCanvas.getContext('2d');
+
+    tempCtx.fillStyle = '#ffffff';
+    tempCtx.beginPath();
+    tempCtx.moveTo(polygonPoints[0].x, polygonPoints[0].y);
+    for (let i = 1; i < polygonPoints.length; i++) {
+        tempCtx.lineTo(polygonPoints[i].x, polygonPoints[i].y);
+    }
+    tempCtx.closePath();
+    tempCtx.fill();
+
+    const tempImgData = tempCtx.getImageData(0, 0, w, h);
+    const data = tempImgData.data;
+
+    for (let i = 0; i < mask.length; i++) {
+        const idx = i * 4;
+        if (data[idx] > 128) {
+            mask[i] = 255;
+        }
+    }
+
+    const key = getActiveImageKey();
+    if (key) {
+        if (!savedPolygons.has(key)) {
+            savedPolygons.set(key, []);
+        }
+        savedPolygons.get(key).push([...polygonPoints]);
+    }
+
+    polygonPoints = [];
+    renderPreview(true);
+}
