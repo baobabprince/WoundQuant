@@ -17,18 +17,17 @@ body{font-family:system-ui;display:flex;align-items:center;justify-content:cente
 (async()=>{
   const m=document.getElementById("m");
   try{
-    const t="?v=3";
-    const [a,b]=await Promise.all([
-      fetch("wq_p1.b64"+t).then(r=>{if(!r.ok)throw new Error("p1 "+r.status);return r.text()}),
-      fetch("wq_p2.b64"+t).then(r=>{if(!r.ok)throw new Error("p2 "+r.status);return r.text()})
-    ]);
+    const t="?v=4";
+    const parts=await Promise.all([0,1,2,3].map(i=>
+      fetch("wq_c"+i+".b64"+t).then(r=>{if(!r.ok)throw new Error("c"+i+" "+r.status);return r.text()})
+    ));
     m.textContent="מפענח...";
-    const bin=Uint8Array.from(atob((a+b).replace(/\s/g,"")),c=>c.charCodeAt(0));
+    const bin=Uint8Array.from(atob(parts.join("").replace(/\s/g,"")),c=>c.charCodeAt(0));
     const html=await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
     if(html.length<10000) throw new Error("too small");
     document.open(); document.write(html); document.close();
   }catch(e){
-    m.textContent="שגיאה: "+e.message+" — נסה Chrome/Edge/Firefox עדכני";
+    m.textContent="שגיאה: "+e.message;
     console.error(e);
   }
 })();
