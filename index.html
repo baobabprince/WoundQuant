@@ -17,24 +17,30 @@ body{font-family:system-ui;display:flex;align-items:center;justify-content:cente
 (async()=>{
   const msg=document.getElementById("msg");
   try{
-    let html=null;
-    try{
-      const r0=await fetch("app.html?v=7");
-      if(r0.ok){ const t=await r0.text(); if(t.length>50000) html=t; }
-    }catch(_){}
-    if(!html){
-      const r=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html");
-      if(!r.ok) throw new Error("HTTP "+r.status);
-      html=await r.text();
-    }
+    const t="?v=8";
+    const [appRes, boostRes]=await Promise.all([
+      fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"),
+      fetch("boost.json"+t)
+    ]);
+    if(!appRes.ok) throw new Error("app "+appRes.status);
+    if(!boostRes.ok) throw new Error("boost "+boostRes.status);
+    let html=await appRes.text();
+    const B=await boostRes.json();
     if(html.length<10000) throw new Error("too small");
 
-    const rep=(a,b)=>{ if(html.includes(a)) html=html.replace(a,b); };
+    const rep=(a,b)=>{ if(a&&b&&html.includes(a)) html=html.replace(a,b); };
 
     rep("const maxDim = 350;","const maxDim = 600;");
     rep("Math.max(0.5, Math.min(3.0, zoom))","Math.max(0.25, Math.min(5.0, zoom))");
     rep("canvas.style.transformOrigin = 'center center';",
         "canvas.style.transformOrigin = 'center center';\n        canvas.style.imageRendering = currentZoomLevel > 1.01 ? 'pixelated' : 'auto';");
+
+    rep(
+      "let manualMasks = new Map(); // key: seriesKey_hours, value: Uint8Array\nlet savedPolygons = new Map(); // key: seriesKey_hours, value: Array of polygon points\nlet isAnnotationMode = false;\nlet currentDrawingTool = 'brush'; // 'brush', 'eraser', 'polygon'\nlet brushSize = 15;\nlet polygonPoints = []; // [{x, y}, ...]\nlet isDrawing = false;\nlet currentZoomLevel = 1.0;",
+      "let manualMasks = new Map();\nlet savedPolygons = new Map();\nlet annotationSource = new Map();\nlet isAnnotationMode = false;\nlet currentDrawingTool = 'brush';\nlet brushSize = 15;\nlet polygonPoints = [];\nlet isDrawing = false;\nlet currentZoomLevel = 1.0;\nlet annotationUndoStack = [];\nconst ANNOTATION_STORAGE_KEY = 'woundquant_annotations_v1';\nconst MAX_UNDO = 30;"
+    );
+
+    rep(B.highconf_old, B.highconf_new);
 
     rep(
       "const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;\n            res.burnArea = Math.round(burnArea * scaleFactor);",
@@ -47,7 +53,24 @@ body{font-family:system-ui;display:flex;align-items:center;justify-content:cente
 
     rep(
       "    for (let i = 0; i < mask.length; i++) {\n        const idx = i * 4;\n        if (data[idx] > 128) {\n            mask[i] = 255;\n        }\n    }\n\n    const key = getActiveImageKey();\n    if (key) {\n        if (!savedPolygons.has(key)) {\n            savedPolygons.set(key, []);\n        }\n        savedPolygons.get(key).push([...polygonPoints]);\n    }\n\n    polygonPoints = [];\n    renderPreview(true);",
-      "    mask.fill(0);\n    for (let i = 0; i < mask.length; i++) {\n        const idx = i * 4;\n        if (data[idx] > 128) mask[i] = 255;\n    }\n    const key = getActiveImageKey();\n    if (key) {\n        if (!savedPolygons.has(key)) savedPolygons.set(key, []);\n        savedPolygons.get(key).push([...polygonPoints]);\n    }\n    polygonPoints = [];\n    if (lastResult) {\n      lastResult.finalMask.set(mask);\n      let ba=0; for(let i=0;i<mask.length;i++) if(mask[i]>0) ba++;\n      let wellPx=0; if(lastResult.wellMask) for(let wi=0;wi<lastResult.wellMask.length;wi++) if(lastResult.wellMask[wi]>0) wellPx++;\n      const sf=(wellPx>0&&lastResult.wellArea)?(lastResult.wellArea/wellPx):1;\n      lastResult.burnArea=Math.round(ba*sf);\n      lastResult.source='manual';\n    }\n    renderPreview(true);"
+      "    mask.fill(0);\n    for (let i = 0; i < mask.length; i++) {\n        const idx = i * 4;\n        if (data[idx] > 128) mask[i] = 255;\n    }\n    const key = getActiveImageKey();\n    if (key) {\n        if (!savedPolygons.has(key)) savedPolygons.set(key, []);\n        savedPolygons.get(key).push([...polygonPoints]);\n        annotationSource.set(key, 'manual');\n    }\n    polygonPoints = [];\n    if (lastResult) {\n      lastResult.finalMask.set(mask);\n      let ba=0; for(let i=0;i<mask.length;i++) if(mask[i]>0) ba++;\n      let wellPx=0; if(lastResult.wellMask) for(let wi=0;wi<lastResult.wellMask.length;wi++) if(lastResult.wellMask[wi]>0) wellPx++;\n      const sf=(wellPx>0&&lastResult.wellArea)?(lastResult.wellArea/wellPx):1;\n      lastResult.burnArea=Math.round(ba*sf);\n      lastResult.source='manual';\n    }\n    try{persistAnnotations();}catch(_){}\n    renderPreview(true);"
+    );
+
+    rep("function getActiveManualMask(res) {", B.storage+"function getActiveManualMask(res) {");
+
+    rep(
+      'onclick="applyPolygon()" style="background: var(--primary); color: white; border-color: var(--primary); padding: 4px 10px; font-size: 0.75rem;">✅ סגור ומלא פוליגון</button>',
+      'onclick="applyPolygon()" style="background: var(--primary); color: white; border-color: var(--primary); padding: 4px 10px; font-size: 0.75rem;">✅ סגור ומלא פוליגון</button>\n<button class="step-btn" onclick="undoAnnotation()" style="padding: 4px 10px; font-size: 0.75rem;" title="Ctrl+Z">↩️ בטל</button>'
+    );
+
+    rep(
+      'csvContent += "Series/Well,Filename,Timepoint (Hours),Confluency (%),Burn (%),Burn Area (px),Well Area (px),Normalized Burn Area to t=0\\n";',
+      'csvContent += "Series/Well,Filename,Timepoint (Hours),Confluency (%),Burn (%),Burn Area (px),Well Area (px),Normalized Burn Area to t=0,Closure (%),Closure Rate (%/h),Source\\n";'
+    );
+
+    rep(
+      "updateLanguage();\ntoggleTextureControls();\n</script>",
+      "updateLanguage();\ntoggleTextureControls();\nloadAnnotationsFromStorage();\ndocument.addEventListener('keydown',(e)=>{\n  if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT'))return;\n  const k=e.key.toLowerCase();\n  if(k==='b'&&isAnnotationMode)setDrawingTool('brush');\n  else if(k==='e'&&isAnnotationMode)setDrawingTool('eraser');\n  else if(k==='p'&&isAnnotationMode)setDrawingTool('polygon');\n  else if(k==='z'&&(e.ctrlKey||e.metaKey)){e.preventDefault();undoAnnotation();}\n  else if(k==='enter'&&isAnnotationMode&&currentDrawingTool==='polygon'&&polygonPoints.length>=3){e.preventDefault();applyPolygon();}\n});\n</script>"
     );
 
     document.open(); document.write(html); document.close();
