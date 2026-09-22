@@ -19,11 +19,10 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
   var msg=document.getElementById("msg");
   try{
     try{
-      var keys=["wq_app_v13","wq_app_v14","wq_app_v15","wq_app_v19","wq_full_v15","wq_full_v16","wq_full_v17","wq_full_v18"];
-      keys.forEach(function(k){sessionStorage.removeItem(k);});
+      ["wq_app_v13","wq_app_v14","wq_app_v15","wq_app_v19","wq_full_v15","wq_full_v16","wq_full_v17","wq_full_v18"].forEach(function(k){sessionStorage.removeItem(k);});
     }catch(e){}
 
-    var t="?v=25";
+    var t="?v=26";
     var appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"+t);
     if(!appRes.ok) throw new Error("app "+appRes.status);
     var boostRes=await fetch("boost.json"+t);
@@ -32,7 +31,6 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
     var html=await appRes.text();
     var B=await boostRes.json();
     if(html.length<10000) throw new Error("too small");
-
     function rep(a,b){ if(a&&b&&html.indexOf(a)>=0) html=html.replace(a,b); }
 
     rep("const maxDim = 350;","const maxDim = 99999;");
@@ -98,57 +96,52 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
       "        try {\n          var sb = document.getElementById('statusBadge');\n          if (sb) sb.innerText = (typeof currentLang!=='undefined'&&currentLang==='he') ? 'מעבד תמונה…' : 'Processing…';\n          res = await processImageFile(item, cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull, prevMaskSmall);\n          if (res && res.error) { if (sb) sb.innerText = 'שגיאה בטעינת תמונה (TIFF/פורמט?)'; return; }\n          res.seriesKey = seriesKey;\n          res.hours = timeVal;\n          lastResult = res;\n          if (sb) sb.innerText = (typeof currentLang!=='undefined'&&currentLang==='he') ? 'מוכן' : 'Ready';\n        } catch (err) {\n          console.error(err);\n          var sb2 = document.getElementById('statusBadge');\n          if (sb2) sb2.innerText = 'שגיאה: ' + (err && err.message ? err.message : err);\n          return;\n        }"
     );
 
+    // Simple defaults: no texture, Otsu, largest CC, invert OFF
     rep(
       '<option value="entropy" selected>אנטרופיה מקומית (Local Entropy)</option>',
       '<option value="entropy">אנטרופיה מקומית (Local Entropy)</option>'
     );
     rep(
-      '<option value="variance">שונות מקומית (Local Variance)</option>',
-      '<option value="variance" selected>שונות מקומית (Local Variance)</option>'
-    );
-    rep(
-      "if (textureFilter === 'entropy') {\n                processedGray = computeLocalEntropy(sharpenedGray, w, h, textureRadius);\n            } else if (textureFilter === 'variance') {\n                processedGray = computeLocalVariance(sharpenedGray, w, h, textureRadius);\n            }",
-      "var tr = Math.min(textureRadius|0, textureFilter==='entropy' ? 3 : 6);\n            if (textureFilter === 'entropy') {\n                processedGray = computeLocalEntropy(sharpenedGray, w, h, tr);\n            } else if (textureFilter === 'variance') {\n                processedGray = computeLocalVariance(sharpenedGray, w, h, tr);\n            }"
-    );
-    rep(
-      "ChanVeseJS(processedGray, wellMask, w, h, initMask, 40, 2, 1.0, 1.0);",
-      "ChanVeseJS(processedGray, wellMask, w, h, initMask, 12, 2, 1.0, 1.0);"
-    );
-    rep(
-      "let burnSeed = erode(closedBinary, w, h, 12);",
-      "let burnSeed = erode(closedBinary, w, h, 5);"
-    );
-    rep(
-      "const img = new Image();\n        img.onload = () => {",
-      "const img = new Image();\n        img.onerror = () => { try{URL.revokeObjectURL(img.src);}catch(e){} resolve({error:true, burnArea:0, wellArea:1, finalMask:new Uint8Array(1), wellMask:new Uint8Array(1), width:1, height:1, imgData:null, fullImg:null}); };\n        img.onload = () => {"
-    );
-    rep(
-      "const dilatedPrev = dilate(prevMaskSmall, w, h, 8);",
-      "const dilatedPrev = dilate(prevMaskSmall, w, h, 4);"
-    );
-
-    rep(
-      '<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>',
-      '<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>\n    <script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js"><\/script>'
-    );
-    rep(
-      'accept="image/*"',
-      'accept="image/*,.tif,.tiff,image/tiff,image/tif"'
-    );
-    rep(
-      "        img.src = URL.createObjectURL(fileItem.file);\n    });\n}",
-      "        (async function(){\n          try {\n            var f = fileItem.file;\n            var nm = (f.name || '').toLowerCase();\n            var isTiff = nm.endsWith('.tif') || nm.endsWith('.tiff') || (f.type && f.type.indexOf('tif') >= 0);\n            if (isTiff) {\n              if (typeof UTIF === 'undefined') throw new Error('TIFF decoder (UTIF) not loaded');\n              var buf = await f.arrayBuffer();\n              var ifds = UTIF.decode(buf);\n              if (!ifds || !ifds.length) throw new Error('empty TIFF');\n              UTIF.decodeImage(buf, ifds[0]);\n              var rgba = new Uint8ClampedArray(UTIF.toRGBA8(ifds[0]));\n              var tc = document.createElement('canvas');\n              tc.width = ifds[0].width; tc.height = ifds[0].height;\n              tc.getContext('2d').putImageData(new ImageData(rgba, tc.width, tc.height), 0, 0);\n              tc.toBlob(function(blob){\n                if (!blob) { resolve({error:true, burnArea:0, wellArea:1, finalMask:new Uint8Array(1), wellMask:new Uint8Array(1), width:1, height:1, imgData:null, fullImg:null}); return; }\n                img.src = URL.createObjectURL(blob);\n              }, 'image/png');\n            } else {\n              img.src = URL.createObjectURL(f);\n            }\n          } catch (err) {\n            console.error(err);\n            resolve({error:true, message: String(err && err.message || err), burnArea:0, wellArea:1, finalMask:new Uint8Array(1), wellMask:new Uint8Array(1), width:1, height:1, imgData:null, fullImg:null});\n          }\n        })();\n    });\n}"
-    );
-
-    // Fix full-well marking + download annotated image
-    rep(
-      'id="invertThreshCheckbox" checked onchange="renderPreview()"',
-      'id="invertThreshCheckbox" onchange="renderPreview()"'
+      '<option value="none">ללא (None - Raw Grayscale)</option>',
+      '<option value="none" selected>ללא (None - Raw Grayscale)</option>'
     );
     rep(
       '<option value="chan_vese" selected>סגמנטציית אקטיב קונטור במרחב-זמן (Chan-Vese)</option>\n                <option value="largest">הרכיב הקשיר הגדול ביותר בלבד</option>',
       '<option value="chan_vese">סגמנטציית אקטיב קונטור במרחב-זמן (Chan-Vese)</option>\n                <option value="largest" selected>הרכיב הקשיר הגדול ביותר בלבד</option>'
     );
+    rep(
+      'id="invertThreshCheckbox" checked onchange="renderPreview()"',
+      'id="invertThreshCheckbox" onchange="renderPreview()"'
+    );
+
+    // Auto-flip if burn > 50% of well (wound = minority)
+    rep(
+      "            // Scale burnArea and wellArea back up to original image resolution",
+      "            if (wellArea > 50 && burnArea / wellArea > 0.50) {\n                for (let i = 0; i < finalMask.length; i++) {\n                    if (wellMask[i] > 0) finalMask[i] = finalMask[i] > 0 ? 0 : 255;\n                    else finalMask[i] = 0;\n                }\n                finalMask = largestCCFilled(finalMask, w, h);\n                for (let i = 0; i < finalMask.length; i++) if (wellMask[i] === 0) finalMask[i] = 0;\n                burnArea = 0; wellArea = 0;\n                for (let i = 0; i < finalMask.length; i++) {\n                    if (wellMask[i] > 0) wellArea++;\n                    if (finalMask[i] > 0) burnArea++;\n                }\n            }\n            // Scale burnArea and wellArea back up to original image resolution"
+    );
+
+    rep(
+      "if (textureFilter === 'entropy') {\n                processedGray = computeLocalEntropy(sharpenedGray, w, h, textureRadius);\n            } else if (textureFilter === 'variance') {\n                processedGray = computeLocalVariance(sharpenedGray, w, h, textureRadius);\n            }",
+      "var tr = Math.min(textureRadius|0, textureFilter==='entropy' ? 3 : 6);\n            if (textureFilter === 'entropy') {\n                processedGray = computeLocalEntropy(sharpenedGray, w, h, tr);\n            } else if (textureFilter === 'variance') {\n                processedGray = computeLocalVariance(sharpenedGray, w, h, tr);\n            }"
+    );
+    rep("ChanVeseJS(processedGray, wellMask, w, h, initMask, 40, 2, 1.0, 1.0);","ChanVeseJS(processedGray, wellMask, w, h, initMask, 12, 2, 1.0, 1.0);");
+    rep("let burnSeed = erode(closedBinary, w, h, 12);","let burnSeed = erode(closedBinary, w, h, 5);");
+    rep(
+      "const img = new Image();\n        img.onload = () => {",
+      "const img = new Image();\n        img.onerror = () => { try{URL.revokeObjectURL(img.src);}catch(e){} resolve({error:true, burnArea:0, wellArea:1, finalMask:new Uint8Array(1), wellMask:new Uint8Array(1), width:1, height:1, imgData:null, fullImg:null}); };\n        img.onload = () => {"
+    );
+    rep("const dilatedPrev = dilate(prevMaskSmall, w, h, 8);","const dilatedPrev = dilate(prevMaskSmall, w, h, 4);");
+
+    rep(
+      '<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>',
+      '<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>\n    <script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js"><\/script>'
+    );
+    rep('accept="image/*"','accept="image/*,.tif,.tiff,image/tiff,image/tif"');
+    rep(
+      "        img.src = URL.createObjectURL(fileItem.file);\n    });\n}",
+      "        (async function(){\n          try {\n            var f = fileItem.file;\n            var nm = (f.name || '').toLowerCase();\n            var isTiff = nm.endsWith('.tif') || nm.endsWith('.tiff') || (f.type && f.type.indexOf('tif') >= 0);\n            if (isTiff) {\n              if (typeof UTIF === 'undefined') throw new Error('TIFF decoder (UTIF) not loaded');\n              var buf = await f.arrayBuffer();\n              var ifds = UTIF.decode(buf);\n              if (!ifds || !ifds.length) throw new Error('empty TIFF');\n              UTIF.decodeImage(buf, ifds[0]);\n              var rgba = new Uint8ClampedArray(UTIF.toRGBA8(ifds[0]));\n              var tc = document.createElement('canvas');\n              tc.width = ifds[0].width; tc.height = ifds[0].height;\n              tc.getContext('2d').putImageData(new ImageData(rgba, tc.width, tc.height), 0, 0);\n              tc.toBlob(function(blob){\n                if (!blob) { resolve({error:true, burnArea:0, wellArea:1, finalMask:new Uint8Array(1), wellMask:new Uint8Array(1), width:1, height:1, imgData:null, fullImg:null}); return; }\n                img.src = URL.createObjectURL(blob);\n              }, 'image/png');\n            } else {\n              img.src = URL.createObjectURL(f);\n            }\n          } catch (err) {\n            console.error(err);\n            resolve({error:true, message: String(err && err.message || err), burnArea:0, wellArea:1, finalMask:new Uint8Array(1), wellMask:new Uint8Array(1), width:1, height:1, imgData:null, fullImg:null});\n          }\n        })();\n    });\n}"
+    );
+
     rep(
       "function exportResultsCSV() {",
       "function downloadAnnotatedImage(){\n  try{\n    if(!lastResult){alert(currentLang==='he'?'אין תמונה להורדה — העלה ועבד תמונה תחילה':'No image to download');return;}\n    var link=document.createElement('a');\n    var name=(document.getElementById('currentFilenameText')&&document.getElementById('currentFilenameText').innerText)||'woundquant';\n    name=name.replace(/\\.[^.]+$/,'')+'_annotated.png';\n    link.download=name;\n    link.href=mainCanvas.toDataURL('image/png');\n    link.click();\n  }catch(e){console.error(e);alert('Export error: '+e.message);}\n}\nfunction exportResultsCSV() {"
