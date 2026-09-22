@@ -17,7 +17,7 @@ body{font-family:system-ui;display:flex;align-items:center;justify-content:cente
 (async()=>{
   const msg=document.getElementById("msg");
   try{
-    const t="?v=11";
+    const t="?v=12";
     const appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html");
     if(!appRes.ok) throw new Error("app "+appRes.status);
     let boostRes=await fetch("boost.json"+t);
@@ -72,10 +72,21 @@ body{font-family:system-ui;display:flex;align-items:center;justify-content:cente
       "updateLanguage();\ntoggleTextureControls();\nloadAnnotationsFromStorage();\ndocument.addEventListener('keydown',(e)=>{\n  if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT'))return;\n  const k=e.key.toLowerCase();\n  if(k==='b'&&isAnnotationMode)setDrawingTool('brush');\n  else if(k==='e'&&isAnnotationMode)setDrawingTool('eraser');\n  else if(k==='p'&&isAnnotationMode)setDrawingTool('polygon');\n  else if(k==='z'&&(e.ctrlKey||e.metaKey)){e.preventDefault();undoAnnotation();}\n  else if(k==='enter'&&isAnnotationMode&&currentDrawingTool==='polygon'&&polygonPoints.length>=3){e.preventDefault();applyPolygon();}\n});\n<\/script>"
     );
 
-    // Fix example images: load from CDN (not on Pages master)
     rep(
       "const response = await fetch(`./examples/${encodedName}`);",
       "const response = await fetch(`https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/examples/${encodedName}`);"
+    );
+
+    // Accept files that don't match strict naming — still show them
+    rep(
+      "    files.forEach(file => {\n        const match = file.name.match(FILENAME_REGEX);\n        if (match) {\n            const { well, site, days, hours, mins } = match.groups;\n            const totalHours = parseInt(days)*24 + parseInt(hours) + parseInt(mins)/60;\n            const seriesKey = `${well}_Site${site}`;\n\n            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n            filesMap.get(seriesKey).push({ file, hours: totalHours, well, site });\n        }\n    });\n\n    statusBadge.innerText = dict.loadedManual(files.length);\n    populateSeriesDropdown();",
+      "    let matched = 0, unmatched = 0;\n    files.forEach((file, fi) => {\n        const match = file.name.match(FILENAME_REGEX);\n        if (match) {\n            const { well, site, days, hours, mins } = match.groups;\n            const totalHours = parseInt(days)*24 + parseInt(hours) + parseInt(mins)/60;\n            const seriesKey = `${well}_Site${site}`;\n            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n            filesMap.get(seriesKey).push({ file, hours: totalHours, well, site });\n            matched++;\n        } else {\n            const seriesKey = 'Upload';\n            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n            filesMap.get(seriesKey).push({ file, hours: unmatched, well: 'X', site: '1' });\n            unmatched++;\n        }\n    });\n    statusBadge.innerText = matched + unmatched > 0\n      ? (dict.loadedManual(matched + unmatched) + (unmatched ? ` (${unmatched} ללא תבנית שם)` : ''))\n      : (currentLang==='he' ? 'לא נטענו קבצים' : 'No files loaded');\n    populateSeriesDropdown();"
+    );
+
+    // Show status while processing preview + catch errors
+    rep(
+      "        res = await processImageFile(item, cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull, prevMaskSmall);\n        res.seriesKey = seriesKey;\n        res.hours = timeVal;\n        lastResult = res;",
+      "        try {\n          const sb = document.getElementById('statusBadge');\n          if (sb) sb.innerText = (typeof currentLang!=='undefined'&&currentLang==='he') ? 'מעבד תמונה…' : 'Processing…';\n          res = await processImageFile(item, cropMargin, textureFilter, textureRadius, threshMethod, invertThresh, postProcess, closingRad, useHull, prevMaskSmall);\n          res.seriesKey = seriesKey;\n          res.hours = timeVal;\n          lastResult = res;\n          if (sb) sb.innerText = (typeof currentLang!=='undefined'&&currentLang==='he') ? 'מוכן' : 'Ready';\n        } catch (err) {\n          console.error(err);\n          const sb = document.getElementById('statusBadge');\n          if (sb) sb.innerText = 'שגיאה: ' + (err && err.message ? err.message : err);\n          return;\n        }"
     );
 
     document.open(); document.write(html); document.close();
