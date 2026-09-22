@@ -1,1 +1,39 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WoundQuant – Loading...</title>
+<style>
+body{font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f1f5f9}
+.box{background:#fff;border:1px solid #cbd5e1;padding:24px 32px;border-radius:12px;text-align:center;max-width:420px}
+.spinner{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="box">
+<div class="spinner"></div>
+<p id="msg">טוען את WoundQuant...</p>
+</div>
+<script>
+(async function() {
+  const msg = document.getElementById("msg");
+  try {
+    // Load the last known full working version from GitHub
+    const url = "https://raw.githubusercontent.com/baobabprince/WoundQuant/1c657ff/index.html";
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const html = await res.text();
+    if (html.length < 10000) throw new Error("File too small");
+    document.open();
+    document.write(html);
+    document.close();
+  } catch (e) {
+    msg.textContent = "שגיאה בטעינה: " + e.message + ". נסה לרענן.";
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>
