@@ -1,0 +1,69 @@
+            // Clean up with well mask
+            let burnArea = 0;
+            let wellArea = 0;
+            for (let i = 0; i < finalMask.length; i++) {
+                if (wellMask[i] === 0) {
+                    finalMask[i] = 0;
+                }
+                if (wellMask[i] > 0) wellArea++;
+                if (finalMask[i] > 0) burnArea++;
+            }
+
+            // Smart high-confluency safeguard
+            let rawSignalCount = 0;
+            for (let i = 0; i < closedBinary.length; i++) {
+                if (closedBinary[i] > 0 && wellMask[i] > 0) rawSignalCount++;
+            }
+            const rawSignalPct = wellArea > 0 ? (rawSignalCount / wellArea) * 100 : 0;
+            let burnPct = wellArea > 0 ? (burnArea / wellArea) * 100 : 0;
+
+            // Case A: weak raw signal but large claimed burn → false large burn
+            if (rawSignalPct < 3 && burnPct > 15) {
+                finalMask.fill(0);
+                burnArea = 0;
+                burnPct = 0;
+            }
+
+            // Temporal prior constraint: if previous mask exists, reject huge jumps
+            if (prevMaskSmall && prevMaskSmall.length === w * h && burnArea > 0) {
+                let prevCount = 0;
+                for (let i = 0; i < prevMaskSmall.length; i++) {
+                    if (prevMaskSmall[i] > 0 && wellMask[i] > 0) prevCount++;
+                }
+                // Soft temporal blend: intersect-expand with previous when jump is extreme
+                if (prevCount > 0 && burnArea > prevCount * 3.5 && burnPct > 25) {
+                    const dilatedPrev = dilate(prevMaskSmall, w, h, 8);
+                    let constrained = 0;
+                    for (let i = 0; i < finalMask.length; i++) {
+                        if (finalMask[i] > 0 && dilatedPrev[i] === 0) {
+                            finalMask[i] = 0;
+                        }
+                        if (finalMask[i] > 0) constrained++;
+                    }
+                    burnArea = constrained;
+                }
+            }
+
+            // Scale burnArea and wellArea back up to original image resolution
+            const scaleFactor = (originalW * originalH) / (w * h);
+            const scaledBurnArea = Math.round(burnArea * scaleFactor);
+            const scaledWellArea = Math.round(wellArea * scaleFactor);
+
+            resolve({
+                fullImg: img,
+                burnArea: scaledBurnArea,
+                wellArea: scaledWellArea,
+                originalWidth: originalW,
+                originalHeight: originalH,
+                imgData,
+                gray,
+                sharpenedGray,
+                wellMask,
+                processedGray,
+                threshBinary: rawThreshBinary,
+                closedBinary,
+                finalMask,
+                width: w,
+                height: h,
+                source: 'auto'
+            });

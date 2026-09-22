@@ -1,0 +1,31 @@
+            // Clean up with well mask
+            let burnArea = 0;
+            let wellArea = 0;
+            for (let i = 0; i < finalMask.length; i++) {
+                if (wellMask[i] === 0) {
+                    finalMask[i] = 0;
+                }
+                if (wellMask[i] > 0) wellArea++;
+                if (finalMask[i] > 0) burnArea++;
+            }
+
+            // Scale burnArea and wellArea back up to original image resolution
+            const scaleFactor = (originalW * originalH) / (w * h);
+            const scaledBurnArea = Math.round(burnArea * scaleFactor);
+            const scaledWellArea = Math.round(wellArea * scaleFactor);
+
+            resolve({
+                fullImg: img,
+                burnArea: scaledBurnArea,
+                wellArea: scaledWellArea,
+                imgData,
+                gray,
+                sharpenedGray,
+                wellMask,
+                processedGray,
+                threshBinary: rawThreshBinary,
+                closedBinary,
+                finalMask,
+                width: w,
+                height: h
+            });
