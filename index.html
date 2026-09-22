@@ -14,19 +14,17 @@ body{display:flex;align-items:center;justify-content:center;background:#f1f5f9}
 </head>
 <body>
 <div class="box" id="boot"><div class="spinner"></div><p id="msg">טוען WoundQuant…</p></div>
+<script src="wq_data.js?v=17"></script>
 <script>
 (async()=>{
   const msg=document.getElementById("msg");
-  const KEY="wq_full_v16";
+  const KEY="wq_full_v17";
   try{
-    try{["wq_app_v13","wq_app_v14","wq_app_v15","wq_full_v15"].forEach(k=>sessionStorage.removeItem(k));}catch(e){}
+    try{["wq_app_v13","wq_app_v14","wq_app_v15","wq_full_v15","wq_full_v16"].forEach(k=>sessionStorage.removeItem(k));}catch(e){}
     let html=sessionStorage.getItem(KEY);
     if(!html||html.length<50000){
-      const urls=["app.0.b64","app.1.b64","app.2.b64","app.3.b64","app.4.b64"].map(u=>u+"?v=16");
-      const rs=await Promise.all(urls.map(u=>fetch(u)));
-      if(rs.some(r=>!r.ok)) throw new Error("fetch fail");
-      const b64=(await Promise.all(rs.map(r=>r.text()))).join("");
-      const bin=atob(b64);
+      if(!window.WQ_B64) throw new Error("no data");
+      const bin=atob(window.WQ_B64);
       const bytes=new Uint8Array(bin.length);
       for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
       const ds=new DecompressionStream("gzip");
