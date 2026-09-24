@@ -18,7 +18,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
 (async()=>{
   var msg=document.getElementById("msg");
   try{
-    var t="?v=35";
+    var t="?v=36";
     var appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"+t);
     if(!appRes.ok) throw new Error("app "+appRes.status);
     var boostRes=await fetch("boost.json"+t);
@@ -132,7 +132,8 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
     document.write(html);
     document.close();
   }catch(e){
-    msg.textContent="שגיאה: "+e.message;\n    console.error(e);
+    msg.textContent="שגיאה: "+e.message;
+    console.error(e);
   }
 })();
 </script>
