@@ -1,1 +1,110 @@
-LOADING
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WoundQuant</title>
+<style>
+html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
+#boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:99999;background:#f1f5f9}
+.box{background:#fff;border:1px solid #cbd5e1;padding:24px;border-radius:12px;text-align:center;max-width:400px}
+.spinner{width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:s .6s linear infinite;margin:0 auto 10px}
+@keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="boot"><div class="box"><div class="spinner"></div><p id="msg">טוען WoundQuant…</p></div></div>
+<script>
+(async()=>{
+  var msg=document.getElementById("msg");
+  try{
+    var t="?v=30b";
+    var appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"+t);
+    if(!appRes.ok) throw new Error("app "+appRes.status);
+    var boostRes=await fetch("boost.json"+t);
+    if(!boostRes.ok) boostRes=await fetch("https://raw.githubusercontent.com/baobabprince/WoundQuant/master/boost.json"+t);
+    if(!boostRes.ok) throw new Error("boost "+boostRes.status);
+    var html=await appRes.text();
+    var B=await boostRes.json();
+    if(html.length<10000) throw new Error("too small");
+    function rep(a,b){ if(a&&b&&html.indexOf(a)>=0) html=html.replace(a,b); }
+
+    rep("const maxDim = 350;","const maxDim = 99999;");
+
+    rep(
+      "let manualMasks = new Map(); // key: seriesKey_hours, value: Uint8Array\nlet savedPolygons = new Map(); // key: seriesKey_hours, value: Array of polygon points\nlet isAnnotationMode = false;\nlet currentDrawingTool = 'brush'; // 'brush', 'eraser', 'polygon'\nlet brushSize = 15;\nlet polygonPoints = []; // [{x, y}, ...]\nlet isDrawing = false;\nlet currentZoomLevel = 1.0;",
+      "let manualMasks = new Map();\nlet savedPolygons = new Map();\nlet annotationSource = new Map();\nlet isAnnotationMode = false;\nlet currentDrawingTool = 'brush';\nlet brushSize = 15;\nlet polygonPoints = [];\nlet isDrawing = false;\nlet currentZoomLevel = 1.0;\nlet annotationUndoStack = [];\nconst ANNOTATION_STORAGE_KEY = 'woundquant_annotations_v1';\nconst RESULTS_STORAGE_KEY = 'woundquant_results_v1';\nconst MAX_UNDO = 30;"
+    );
+
+    rep(B.highconf_old, B.highconf_new);
+    rep("function getActiveManualMask(res) {", B.storage+"function getActiveManualMask(res) {");
+
+    rep(
+      "const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;\n            res.burnArea = Math.round(burnArea * scaleFactor);",
+      "let wellPx=0; if(res.wellMask){for(let wi=0;wi<res.wellMask.length;wi++)if(res.wellMask[wi]>0)wellPx++;}\n            const scaleFactor=(wellPx>0&&res.wellArea)?(res.wellArea/wellPx):1;\n            res.burnArea=Math.round(burnArea*scaleFactor);\n            res.source='manual';"
+    );
+
+    rep('accept="image/*"','accept="image/*,.tif,.tiff,image/tiff"');
+    rep(
+      '<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>',
+      '<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>\n    <script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js"><\/script>'
+    );
+
+    rep(
+      "    filesMap.clear();\n    let loadedCount = 0;\n\n    for (const fileName of exampleFilenames) {\n        try {\n            const encodedName = encodeURIComponent(fileName);\n            const response = await fetch(`./examples/${encodedName}`);\n            if (!response.ok) continue;\n            const blob = await response.blob();\n            const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });\n\n            const match = fileName.match(FILENAME_REGEX);\n            if (match) {\n                const { well, site, days, hours, mins } = match.groups;\n                const totalHours = parseInt(days)*24 + parseInt(hours) + parseInt(mins)/60;\n                const seriesKey = `${well}_Site${site}`;\n\n                if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n                filesMap.get(seriesKey).push({ file, hours: totalHours, well, site });\n                loadedCount++;\n            }\n        } catch (e) {\n            console.warn(`Could not load ./examples/${fileName}`, e);\n        }\n    }",
+      "    filesMap.clear();\n    const CDN='https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/examples/';\n    const results=await Promise.all(exampleFilenames.map(async(fileName)=>{\n      try{\n        const r=await fetch(CDN+encodeURIComponent(fileName));\n        if(!r.ok)return null;\n        const blob=await r.blob();\n        return new File([blob],fileName,{type:blob.type||'image/jpeg'});\n      }catch(e){return null;}\n    }));\n    let loadedCount=0;\n    for(const file of results){\n      if(!file)continue;\n      const match=file.name.match(FILENAME_REGEX);\n      if(!match)continue;\n      const {well,site,days,hours,mins}=match.groups;\n      const totalHours=parseInt(days)*24+parseInt(hours)+parseInt(mins)/60;\n      const seriesKey=`${well}_Site${site}`;\n      if(!filesMap.has(seriesKey))filesMap.set(seriesKey,[]);\n      filesMap.get(seriesKey).push({file,hours:totalHours,well,site});\n      loadedCount++;\n    }"
+    );
+
+    rep(
+      "    files.forEach(file => {\n        const match = file.name.match(FILENAME_REGEX);\n        if (match) {\n            const { well, site, days, hours, mins } = match.groups;\n            const totalHours = parseInt(days)*24 + parseInt(hours) + parseInt(mins)/60;\n            const seriesKey = `${well}_Site${site}`;\n\n            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n            filesMap.get(seriesKey).push({ file, hours: totalHours, well, site });\n        }\n    });\n\n    statusBadge.innerText = dict.loadedManual(files.length);\n    populateSeriesDropdown();",
+      "    let matched = 0, unmatched = 0;\n    files.forEach(function(file) {\n        const match = file.name.match(FILENAME_REGEX);\n        if (match) {\n            const g = match.groups;\n            const totalHours = parseInt(g.days)*24 + parseInt(g.hours) + parseInt(g.mins)/60;\n            const seriesKey = g.well + '_Site' + g.site;\n            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n            filesMap.get(seriesKey).push({ file: file, hours: totalHours, well: g.well, site: g.site });\n            matched++;\n        } else {\n            if (!filesMap.has('Upload')) filesMap.set('Upload', []);\n            filesMap.get('Upload').push({ file: file, hours: unmatched, well: 'X', site: '1' });\n            unmatched++;\n        }\n    });\n    statusBadge.innerText = dict.loadedManual(matched + unmatched);\n    populateSeriesDropdown();"
+    );
+
+    rep(
+      "let processedGray = sharpenedGray;\n            if (textureFilter === 'entropy') {\n                processedGray = computeLocalEntropy(sharpenedGray, w, h, textureRadius);\n            } else if (textureFilter === 'variance') {\n                processedGray = computeLocalVariance(sharpenedGray, w, h, textureRadius);\n            }",
+      "var adaptiveR = Math.max(4, Math.min(25, Math.round(Math.min(w, h) / 30)));\n            let processedGray = computeLocalVariance(sharpenedGray, w, h, adaptiveR);"
+    );
+
+    rep(
+      "            // 6. Convex Hull Integration\n            if (useHull) {\n                finalMask = computeConvexHull(finalMask, w, h);\n            }",
+      "            try {\n              var vals = [];\n              for (var vi = 0; vi < processedGray.length; vi++) if (wellMask[vi] > 0) vals.push(processedGray[vi]);\n              if (vals.length > 200) {\n                vals.sort(function(a,b){ return a - b; });\n                var thrV = vals[Math.floor(vals.length * 0.30)];\n                var woundCand = new Uint8Array(w * h);\n                for (var vi = 0; vi < processedGray.length; vi++) {\n                  if (wellMask[vi] > 0 && processedGray[vi] <= thrV) woundCand[vi] = 255;\n                }\n                var closeR = Math.max(3, Math.round(Math.min(w, h) / 70));\n                var cleaned = morphologicalClose(woundCand, w, h, closeR);\n                finalMask = largestCCFilled(cleaned, w, h);\n                var baT = 0, waT = 0;\n                for (var vi = 0; vi < finalMask.length; vi++) { if (wellMask[vi] > 0) waT++; if (finalMask[vi] > 0) baT++; }\n                if (waT > 0 && baT / waT > 0.55) {\n                  thrV = vals[Math.floor(vals.length * 0.18)];\n                  woundCand = new Uint8Array(w * h);\n                  for (var vi = 0; vi < processedGray.length; vi++) if (wellMask[vi] > 0 && processedGray[vi] <= thrV) woundCand[vi] = 255;\n                  cleaned = morphologicalClose(woundCand, w, h, closeR);\n                  finalMask = largestCCFilled(cleaned, w, h);\n                }\n              }\n            } catch (eW) { console.warn(eW); }\n            // 6. Convex Hull Integration\n            if (useHull) {\n                finalMask = computeConvexHull(finalMask, w, h);\n            }"
+    );
+
+    rep('id="textureSelect" onchange="toggleTextureControls()"','id="textureSelect" style="display:none"');
+    rep('id="methodSelect" onchange="toggleManualSlider()"','id="methodSelect" style="display:none"');
+    rep('id="postProcessSelect" onchange="renderPreview()"','id="postProcessSelect" style="display:none"');
+    rep('id="textureRadiusGroup" class="control-group"','id="textureRadiusGroup" class="control-group" style="display:none"');
+    rep('id="invertThreshCheckbox" checked onchange="renderPreview()"','id="invertThreshCheckbox" style="display:none"');
+
+    rep(
+      "        img.src = URL.createObjectURL(fileItem.file);\n    });\n}",
+      "        (async function(){\n          try {\n            var f = fileItem.file;\n            var nm = (f.name || '').toLowerCase();\n            var isTiff = nm.endsWith('.tif') || nm.endsWith('.tiff');\n            if (isTiff && typeof UTIF !== 'undefined') {\n              var buf = await f.arrayBuffer();\n              var ifds = UTIF.decode(buf);\n              UTIF.decodeImage(buf, ifds[0]);\n              var rgba = new Uint8ClampedArray(UTIF.toRGBA8(ifds[0]));\n              var tc = document.createElement('canvas');\n              tc.width = ifds[0].width; tc.height = ifds[0].height;\n              tc.getContext('2d').putImageData(new ImageData(rgba, tc.width, tc.height), 0, 0);\n              tc.toBlob(function(blob){ img.src = URL.createObjectURL(blob); }, 'image/png');\n            } else {\n              img.src = URL.createObjectURL(f);\n            }\n          } catch (err) {\n            console.error(err);\n            img.src = URL.createObjectURL(fileItem.file);\n          }\n        })();\n    });\n}"
+    );
+
+    rep(
+      "function getActiveImageKey() {\n    const seriesKey = selectSeries.value;\n    const timeVal = parseFloat(selectTime.value);\n    if (!seriesKey || isNaN(timeVal)) return null;\n    return `${seriesKey}_${timeVal}`;\n}",
+      "function getActiveImageKey() {\n    try {\n      var sk = selectSeries.value;\n      var tv = parseFloat(selectTime.value);\n      var items = filesMap.get(sk);\n      if (items) {\n        for (var ii=0;ii<items.length;ii++) if (Math.abs(items[ii].hours - tv) < 1e-6 && items[ii].file && items[ii].file.name) return 'file:' + items[ii].file.name;\n      }\n    } catch (e) {}\n    var seriesKey = selectSeries.value;\n    var timeVal = parseFloat(selectTime.value);\n    if (!seriesKey || isNaN(timeVal)) return null;\n    return seriesKey + '_' + timeVal;\n}"
+    );
+    rep(
+      "function onDrawingEnd() {\n    isDrawing = false;\n}",
+      "function onDrawingEnd() {\n    if (isDrawing && isAnnotationMode) {\n      try { var key = getActiveImageKey(); if (key) annotationSource.set(key, 'manual'); persistAnnotations(); } catch (e) {}\n    }\n    isDrawing = false;\n}"
+    );
+
+    rep(
+      "updateLanguage();\ntoggleTextureControls();\n<\/script>",
+      "updateLanguage();\ntoggleTextureControls();\nloadAnnotationsFromStorage();\n<\/script>"
+    );
+
+    var boot=document.getElementById('boot');
+    if(boot) boot.remove();
+    document.open();
+    document.write(html);
+    document.close();
+  }catch(e){
+    msg.textContent="שגיאה: "+e.message;
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>
