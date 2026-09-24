@@ -18,7 +18,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
 (async()=>{
   var msg=document.getElementById("msg");
   try{
-    var t="?v=30b";
+    var t="?v=31";
     var appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"+t);
     if(!appRes.ok) throw new Error("app "+appRes.status);
     var boostRes=await fetch("boost.json"+t);
@@ -83,7 +83,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
 
     rep(
       "function getActiveImageKey() {\n    const seriesKey = selectSeries.value;\n    const timeVal = parseFloat(selectTime.value);\n    if (!seriesKey || isNaN(timeVal)) return null;\n    return `${seriesKey}_${timeVal}`;\n}",
-      "function getActiveImageKey() {\n    try {\n      var sk = selectSeries.value;\n      var tv = parseFloat(selectTime.value);\n      var items = filesMap.get(sk);\n      if (items) {\n        for (var ii=0;ii<items.length;ii++) if (Math.abs(items[ii].hours - tv) < 1e-6 && items[ii].file && items[ii].file.name) return 'file:' + items[ii].file.name;\n      }\n    } catch (e) {}\n    var seriesKey = selectSeries.value;\n    var timeVal = parseFloat(selectTime.value);\n    if (!seriesKey || isNaN(timeVal)) return null;\n    return seriesKey + '_' + timeVal;\n}"
+      "function getActiveImageKey() {\n    var seriesKey = selectSeries.value;\n    var timeVal = parseFloat(selectTime.value);\n    if (!seriesKey || isNaN(timeVal)) return null;\n    return seriesKey + '_' + timeVal;\n}"
     );
     rep(
       "function onDrawingEnd() {\n    isDrawing = false;\n}",
@@ -93,6 +93,20 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
     rep(
       "updateLanguage();\ntoggleTextureControls();\n<\/script>",
       "updateLanguage();\ntoggleTextureControls();\nloadAnnotationsFromStorage();\n<\/script>"
+    );
+
+    // clear annotation + download image with marking
+    rep(
+      "function clearManualMask() {\n    if (!lastResult) return;\n    const mask = getActiveManualMask(lastResult);\n    if (mask) {\n        mask.fill(0);\n    }\n    const key = getActiveImageKey();\n    if (key) {\n        savedPolygons.delete(key);\n    }\n    polygonPoints = [];\n    renderPreview(true);\n}",
+      "function clearManualMask() {\n    var key = null;\n    try { key = getActiveImageKey(); } catch(e) {}\n    if (key) {\n      try { manualMasks.delete(key); } catch(e) {}\n      try { savedPolygons.delete(key); } catch(e) {}\n      try { annotationSource.delete(key); } catch(e) {}\n    }\n    try {\n      var sk = selectSeries.value;\n      var tv = parseFloat(selectTime.value);\n      manualMasks.delete(sk + '_' + tv);\n      savedPolygons.delete(sk + '_' + tv);\n    } catch(e) {}\n    polygonPoints = [];\n    try { persistAnnotations(); } catch(e) {}\n    lastResult = null;\n    renderPreview(false);\n}"
+    );
+    rep(
+      "function exportResultsCSV() {",
+      "function downloadAnnotatedImage(){\n  try{\n    if(!mainCanvas||mainCanvas.width<2){alert('אין תמונה להורדה');return;}\n    var link=document.createElement('a');\n    var name='woundquant_annotated.png';\n    try{var t=document.getElementById('currentFilenameText');if(t&&t.innerText)name=t.innerText.replace(/\\.[^.]+$/,'')+'_annotated.png';}catch(e){}\n    link.download=name;\n    link.href=mainCanvas.toDataURL('image/png');\n    link.click();\n  }catch(e){alert(e.message);}\n}\nfunction exportResultsCSV() {"
+    );
+    rep(
+      '<button class="btn-secondary" id="btnExportCSV"',
+      '<button class="btn-secondary" id="btnDownloadAnnotated" onclick="downloadAnnotatedImage()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;">📸 הורד תמונה עם סימון</button>\n            <button class="btn-secondary" id="btnExportCSV"'
     );
 
     var boot=document.getElementById('boot');
