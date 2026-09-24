@@ -18,7 +18,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
 (async()=>{
   var msg=document.getElementById("msg");
   try{
-    var t="?v=34";
+    var t="?v=35";
     var appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"+t);
     if(!appRes.ok) throw new Error("app "+appRes.status);
     var boostRes=await fetch("boost.json"+t);
@@ -110,7 +110,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
 
     rep(
       "function clearManualMask() {\n    if (!lastResult) return;\n    const mask = getActiveManualMask(lastResult);\n    if (mask) {\n        mask.fill(0);\n    }\n    const key = getActiveImageKey();\n    if (key) {\n        savedPolygons.delete(key);\n    }\n    polygonPoints = [];\n    renderPreview(true);\n}",
-      "function clearManualMask() {\n    var key = null;\n    try { key = getActiveImageKey(); } catch(e) {}\n    if (key) {\n      try { manualMasks.delete(key); } catch(e) {}\n      try { savedPolygons.delete(key); } catch(e) {}\n      try { annotationSource.delete(key); } catch(e) {}\n    }\n    try {\n      var sk = selectSeries.value;\n      var tv = parseFloat(selectTime.value);\n      manualMasks.delete(sk + '_' + tv);\n      savedPolygons.delete(sk + '_' + tv);\n    } catch(e) {}\n    polygonPoints = [];\n    if (lastResult && lastResult.finalMask) {\n      lastResult.finalMask.fill(0);\n      lastResult.burnArea = 0;\n    }\n    try { showWoundMarking = false; } catch(e) {}\n    try { persistAnnotations(); } catch(e) {}\n    try {\n      var sk2 = selectSeries.value;\n      var hv = selectTime ? parseFloat(selectTime.value) : NaN;\n      if (sk2 && processedResults[sk2]) {\n        var row = processedResults[sk2].find(function(r){ return Math.abs(r.hours-hv)<1e-6; });\n        if (row) { row.area = 0; row.burnPercent = 0; row.confluency = 100; row.source = 'cleared'; }\n      }\n    } catch(e) {}\n    renderPreview(true);\n}"
+      "function clearManualMask() {\n    if (!lastResult || !lastResult.finalMask) return;\n    var key = null;\n    try { key = getActiveImageKey(); } catch(e) {}\n    if (!key) {\n      try { key = selectSeries.value + '_' + parseFloat(selectTime.value); } catch(e) {}\n    }\n    if (!key) return;\n    var empty = new Uint8Array(lastResult.finalMask.length);\n    manualMasks.set(key, empty);\n    try { savedPolygons.delete(key); } catch(e) {}\n    try { annotationSource.set(key, 'cleared'); } catch(e) {}\n    lastResult.finalMask.fill(0);\n    lastResult.burnArea = 0;\n    polygonPoints = [];\n    try { persistAnnotations(); } catch(e) {}\n    try {\n      var sk2 = selectSeries.value;\n      var hv = selectTime ? parseFloat(selectTime.value) : NaN;\n      if (sk2 && processedResults[sk2]) {\n        var row = processedResults[sk2].find(function(r){ return Math.abs(r.hours-hv)<1e-6; });\n        if (row) { row.area = 0; row.burnPercent = 0; row.confluency = 100; row.source = 'cleared'; }\n      }\n    } catch(e) {}\n    renderPreview(true);\n}"
     );
     rep(
       "function exportResultsCSV() {",
@@ -132,8 +132,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
     document.write(html);
     document.close();
   }catch(e){
-    msg.textContent="שגיאה: "+e.message;
-    console.error(e);
+    msg.textContent="שגיאה: "+e.message;\n    console.error(e);
   }
 })();
 </script>
