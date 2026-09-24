@@ -18,7 +18,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
 (async()=>{
   var msg=document.getElementById("msg");
   try{
-    var t="?v=33";
+    var t="?v=34";
     var appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"+t);
     if(!appRes.ok) throw new Error("app "+appRes.status);
     var boostRes=await fetch("boost.json"+t);
@@ -60,7 +60,6 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
       "    let matched = 0, unmatched = 0;\n    files.forEach(function(file) {\n        const match = file.name.match(FILENAME_REGEX);\n        if (match) {\n            const g = match.groups;\n            const totalHours = parseInt(g.days)*24 + parseInt(g.hours) + parseInt(g.mins)/60;\n            const seriesKey = g.well + '_Site' + g.site;\n            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n            filesMap.get(seriesKey).push({ file: file, hours: totalHours, well: g.well, site: g.site });\n            matched++;\n        } else {\n            if (!filesMap.has('Upload')) filesMap.set('Upload', []);\n            filesMap.get('Upload').push({ file: file, hours: unmatched, well: 'X', site: '1' });\n            unmatched++;\n        }\n    });\n    statusBadge.innerText = dict.loadedManual(matched + unmatched);\n    populateSeriesDropdown();"
     );
 
-    // Entropy with small radius (fast); variance available
     rep(
       "let processedGray = sharpenedGray;\n            if (textureFilter === 'entropy') {\n                processedGray = computeLocalEntropy(sharpenedGray, w, h, textureRadius);\n            } else if (textureFilter === 'variance') {\n                processedGray = computeLocalVariance(sharpenedGray, w, h, textureRadius);\n            }",
       "var adaptiveR = Math.max(2, Math.min(4, textureRadius|0 || 3));\n            let processedGray = sharpenedGray;\n            if (textureFilter === 'entropy' || !textureFilter) {\n                processedGray = computeLocalEntropy(sharpenedGray, w, h, adaptiveR);\n            } else if (textureFilter === 'variance') {\n                processedGray = computeLocalVariance(sharpenedGray, w, h, adaptiveR);\n            }"
@@ -69,7 +68,6 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
     rep("ChanVeseJS(processedGray, wellMask, w, h, initMask, 40, 2, 1.0, 1.0);","ChanVeseJS(processedGray, wellMask, w, h, initMask, 12, 2, 1.0, 1.0);");
     rep("let burnSeed = erode(closedBinary, w, h, 12);","let burnSeed = erode(closedBinary, w, h, 5);");
 
-    // Defaults: entropy + Chan-Vese + invert ON
     rep(
       '<option value="none" selected>ללא (None - Raw Grayscale)</option>',
       '<option value="none">ללא (None - Raw Grayscale)</option>'
@@ -112,7 +110,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
 
     rep(
       "function clearManualMask() {\n    if (!lastResult) return;\n    const mask = getActiveManualMask(lastResult);\n    if (mask) {\n        mask.fill(0);\n    }\n    const key = getActiveImageKey();\n    if (key) {\n        savedPolygons.delete(key);\n    }\n    polygonPoints = [];\n    renderPreview(true);\n}",
-      "function clearManualMask() {\n    var key = null;\n    try { key = getActiveImageKey(); } catch(e) {}\n    if (key) {\n      try { manualMasks.delete(key); } catch(e) {}\n      try { savedPolygons.delete(key); } catch(e) {}\n      try { annotationSource.delete(key); } catch(e) {}\n    }\n    try {\n      var sk = selectSeries.value;\n      var tv = parseFloat(selectTime.value);\n      manualMasks.delete(sk + '_' + tv);\n      savedPolygons.delete(sk + '_' + tv);\n    } catch(e) {}\n    polygonPoints = [];\n    try { persistAnnotations(); } catch(e) {}\n    lastResult = null;\n    renderPreview(false);\n}"
+      "function clearManualMask() {\n    var key = null;\n    try { key = getActiveImageKey(); } catch(e) {}\n    if (key) {\n      try { manualMasks.delete(key); } catch(e) {}\n      try { savedPolygons.delete(key); } catch(e) {}\n      try { annotationSource.delete(key); } catch(e) {}\n    }\n    try {\n      var sk = selectSeries.value;\n      var tv = parseFloat(selectTime.value);\n      manualMasks.delete(sk + '_' + tv);\n      savedPolygons.delete(sk + '_' + tv);\n    } catch(e) {}\n    polygonPoints = [];\n    if (lastResult && lastResult.finalMask) {\n      lastResult.finalMask.fill(0);\n      lastResult.burnArea = 0;\n    }\n    try { showWoundMarking = false; } catch(e) {}\n    try { persistAnnotations(); } catch(e) {}\n    try {\n      var sk2 = selectSeries.value;\n      var hv = selectTime ? parseFloat(selectTime.value) : NaN;\n      if (sk2 && processedResults[sk2]) {\n        var row = processedResults[sk2].find(function(r){ return Math.abs(r.hours-hv)<1e-6; });\n        if (row) { row.area = 0; row.burnPercent = 0; row.confluency = 100; row.source = 'cleared'; }\n      }\n    } catch(e) {}\n    renderPreview(true);\n}"
     );
     rep(
       "function exportResultsCSV() {",
