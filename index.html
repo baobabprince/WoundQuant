@@ -22,7 +22,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
       ["wq_app_v13","wq_app_v14","wq_app_v15","wq_app_v19","wq_full_v15","wq_full_v16","wq_full_v17","wq_full_v18"].forEach(function(k){sessionStorage.removeItem(k);});
     }catch(e){}
 
-    var t="?v=27";
+    var t="?v=28";
     var appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"+t);
     if(!appRes.ok) throw new Error("app "+appRes.status);
     var boostRes=await fetch("boost.json"+t);
@@ -149,7 +149,6 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
       '<button class="btn-secondary" id="btnDownloadAnnotated" onclick="downloadAnnotatedImage()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;">📸 <span id="textDownloadAnnotated">הורד תמונה עם סימון</span></button>\n            <button class="btn-secondary" id="btnExportCSV"'
     );
 
-    // Session resume: don't wipe results; skip already-done timepoints
     rep(
       "    processedResults = {};\n\n    for (let [seriesKey, items] of filesMap.entries()) {",
       "    if (!processedResults) processedResults = {};\n\n    for (let [seriesKey, items] of filesMap.entries()) {"
@@ -169,6 +168,24 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
     rep(
       "    statusBadge.innerText = dict.done;",
       "    try{persistResults();}catch(_e){}\n    statusBadge.innerText = dict.done;"
+    );
+
+    // FIX: stable key by filename + persist on brush end + IndexedDB
+    rep(
+      "function getActiveImageKey() {\n    const seriesKey = selectSeries.value;\n    const timeVal = parseFloat(selectTime.value);\n    if (!seriesKey || isNaN(timeVal)) return null;\n    return `${seriesKey}_${timeVal}`;\n}",
+      "function getActiveImageKey() {\n    try {\n      var sk = selectSeries.value;\n      var tv = parseFloat(selectTime.value);\n      var items = filesMap.get(sk);\n      if (items) {\n        var item = null;\n        for (var ii=0;ii<items.length;ii++) if (Math.abs(items[ii].hours - tv) < 1e-6) { item = items[ii]; break; }\n        if (item && item.file && item.file.name) return 'file:' + item.file.name;\n      }\n    } catch (e) {}\n    var seriesKey = selectSeries.value;\n    var timeVal = parseFloat(selectTime.value);\n    if (!seriesKey || isNaN(timeVal)) return null;\n    return seriesKey + '_' + timeVal;\n}"
+    );
+    rep(
+      "function onDrawingEnd() {\n    isDrawing = false;\n}",
+      "function onDrawingEnd() {\n    if (isDrawing && isAnnotationMode) {\n      try {\n        var key = getActiveImageKey();\n        if (key) annotationSource.set(key, 'manual');\n        persistAnnotations();\n      } catch (e) { console.warn(e); }\n    }\n    isDrawing = false;\n}"
+    );
+    rep(
+      "function persistAnnotations(){try{const p={masks:{},polygons:{},sources:{},savedAt:Date.now()};for(const[k,mask]of manualMasks)p.masks[k]={data:maskToBase64(mask),length:mask.length};for(const[k,polys]of savedPolygons)p.polygons[k]=polys;for(const[k,s]of annotationSource)p.sources[k]=s;localStorage.setItem(ANNOTATION_STORAGE_KEY,JSON.stringify(p));}catch(e){console.warn(e);}}",
+      "function persistAnnotations(){try{var p={masks:{},polygons:{},sources:{},savedAt:Date.now()};manualMasks.forEach(function(mask,k){p.masks[k]={data:maskToBase64(mask),length:mask.length};});savedPolygons.forEach(function(polys,k){p.polygons[k]=polys;});annotationSource.forEach(function(s,k){p.sources[k]=s;});var json=JSON.stringify(p);try{localStorage.setItem(ANNOTATION_STORAGE_KEY,json);}catch(e1){console.warn('localStorage full, using IDB',e1);}try{if(window.indexedDB){var req=indexedDB.open('woundquant_db',1);req.onupgradeneeded=function(){req.result.createObjectStore('kv');};req.onsuccess=function(){var tx=req.result.transaction('kv','readwrite');tx.objectStore('kv').put(json,'annotations');};}}catch(e2){console.warn(e2);}var n=manualMasks.size;var sb=document.getElementById('statusBadge');if(sb)sb.innerText=(typeof currentLang!=='undefined'&&currentLang==='he')?('נשמר סימון ('+n+' תמונות)'):('Annotation saved ('+n+')');}catch(e){console.warn(e);}}"
+    );
+    rep(
+      "function loadAnnotationsFromStorage(){try{const raw=localStorage.getItem(ANNOTATION_STORAGE_KEY);if(!raw)return;const p=JSON.parse(raw);if(p.masks)for(const[k,o]of Object.entries(p.masks))if(o&&o.data&&o.length)manualMasks.set(k,base64ToMask(o.data,o.length));if(p.polygons)for(const[k,polys]of Object.entries(p.polygons))savedPolygons.set(k,polys);if(p.sources)for(const[k,s]of Object.entries(p.sources))annotationSource.set(k,s);}catch(e){console.warn(e);}}",
+      "function loadAnnotationsFromStorage(){function apply(raw){try{if(!raw)return;var p=JSON.parse(raw);if(p.masks)Object.keys(p.masks).forEach(function(k){var o=p.masks[k];if(o&&o.data&&o.length)manualMasks.set(k,base64ToMask(o.data,o.length));});if(p.polygons)Object.keys(p.polygons).forEach(function(k){savedPolygons.set(k,p.polygons[k]);});if(p.sources)Object.keys(p.sources).forEach(function(k){annotationSource.set(k,p.sources[k]);});var n=manualMasks.size;if(n){var sb=document.getElementById('statusBadge');if(sb)sb.innerText=(typeof currentLang!=='undefined'&&currentLang==='he')?('שוחזרו '+n+' סימונים שמורים'):(n+' annotations restored');}}catch(e){console.warn(e);}}try{var raw=localStorage.getItem(ANNOTATION_STORAGE_KEY);if(raw)apply(raw);}catch(e){}try{if(window.indexedDB){var req=indexedDB.open('woundquant_db',1);req.onupgradeneeded=function(){req.result.createObjectStore('kv');};req.onsuccess=function(){try{var tx=req.result.transaction('kv','readonly');var g=tx.objectStore('kv').get('annotations');g.onsuccess=function(){if(g.result)apply(g.result);};}catch(e3){}};}}catch(e2){}}"
     );
 
     var boot=document.getElementById('boot');
