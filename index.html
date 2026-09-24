@@ -18,7 +18,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
 (async()=>{
   var msg=document.getElementById("msg");
   try{
-    var t="?v=32";
+    var t="?v=33";
     var appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"+t);
     if(!appRes.ok) throw new Error("app "+appRes.status);
     var boostRes=await fetch("boost.json"+t);
@@ -29,7 +29,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
     if(html.length<10000) throw new Error("too small");
     function rep(a,b){ if(a&&b&&html.indexOf(a)>=0) html=html.replace(a,b); }
 
-    rep("const maxDim = 350;","const maxDim = 99999;");
+    rep("const maxDim = 350;","const maxDim = 650;");
 
     rep(
       "let manualMasks = new Map(); // key: seriesKey_hours, value: Uint8Array\nlet savedPolygons = new Map(); // key: seriesKey_hours, value: Array of polygon points\nlet isAnnotationMode = false;\nlet currentDrawingTool = 'brush'; // 'brush', 'eraser', 'polygon'\nlet brushSize = 15;\nlet polygonPoints = []; // [{x, y}, ...]\nlet isDrawing = false;\nlet currentZoomLevel = 1.0;",
@@ -60,13 +60,16 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
       "    let matched = 0, unmatched = 0;\n    files.forEach(function(file) {\n        const match = file.name.match(FILENAME_REGEX);\n        if (match) {\n            const g = match.groups;\n            const totalHours = parseInt(g.days)*24 + parseInt(g.hours) + parseInt(g.mins)/60;\n            const seriesKey = g.well + '_Site' + g.site;\n            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n            filesMap.get(seriesKey).push({ file: file, hours: totalHours, well: g.well, site: g.site });\n            matched++;\n        } else {\n            if (!filesMap.has('Upload')) filesMap.set('Upload', []);\n            filesMap.get('Upload').push({ file: file, hours: unmatched, well: 'X', site: '1' });\n            unmatched++;\n        }\n    });\n    statusBadge.innerText = dict.loadedManual(matched + unmatched);\n    populateSeriesDropdown();"
     );
 
-    // Texture: entropy by default (with adaptive radius), variance still available
+    // Entropy with small radius (fast); variance available
     rep(
       "let processedGray = sharpenedGray;\n            if (textureFilter === 'entropy') {\n                processedGray = computeLocalEntropy(sharpenedGray, w, h, textureRadius);\n            } else if (textureFilter === 'variance') {\n                processedGray = computeLocalVariance(sharpenedGray, w, h, textureRadius);\n            }",
-      "var adaptiveR = Math.max(3, Math.min(8, textureRadius|0 || Math.round(Math.min(w,h)/40)));\n            let processedGray = sharpenedGray;\n            if (textureFilter === 'entropy' || !textureFilter) {\n                processedGray = computeLocalEntropy(sharpenedGray, w, h, adaptiveR);\n            } else if (textureFilter === 'variance') {\n                processedGray = computeLocalVariance(sharpenedGray, w, h, adaptiveR);\n            }"
+      "var adaptiveR = Math.max(2, Math.min(4, textureRadius|0 || 3));\n            let processedGray = sharpenedGray;\n            if (textureFilter === 'entropy' || !textureFilter) {\n                processedGray = computeLocalEntropy(sharpenedGray, w, h, adaptiveR);\n            } else if (textureFilter === 'variance') {\n                processedGray = computeLocalVariance(sharpenedGray, w, h, adaptiveR);\n            }"
     );
 
-    // Defaults: entropy selected, Chan-Vese selected, invert ON
+    rep("ChanVeseJS(processedGray, wellMask, w, h, initMask, 40, 2, 1.0, 1.0);","ChanVeseJS(processedGray, wellMask, w, h, initMask, 12, 2, 1.0, 1.0);");
+    rep("let burnSeed = erode(closedBinary, w, h, 12);","let burnSeed = erode(closedBinary, w, h, 5);");
+
+    // Defaults: entropy + Chan-Vese + invert ON
     rep(
       '<option value="none" selected>ללא (None - Raw Grayscale)</option>',
       '<option value="none">ללא (None - Raw Grayscale)</option>'
@@ -120,7 +123,6 @@ html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
       '<button class="btn-secondary" id="btnDownloadAnnotated" onclick="downloadAnnotatedImage()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;">📸 הורד תמונה עם סימון</button>\n            <button class="btn-secondary" id="btnExportCSV"'
     );
 
-    // High-coverage auto-flip safeguard
     rep(
       "            // Scale burnArea and wellArea back up to original image resolution",
       "            if (wellArea > 50 && burnArea / wellArea > 0.55) {\n                for (let i = 0; i < finalMask.length; i++) {\n                    if (wellMask[i] > 0) finalMask[i] = finalMask[i] > 0 ? 0 : 255;\n                    else finalMask[i] = 0;\n                }\n                finalMask = largestCCFilled(finalMask, w, h);\n                for (let i = 0; i < finalMask.length; i++) if (wellMask[i] === 0) finalMask[i] = 0;\n                burnArea = 0; wellArea = 0;\n                for (let i = 0; i < finalMask.length; i++) {\n                    if (wellMask[i] > 0) wellArea++;\n                    if (finalMask[i] > 0) burnArea++;\n                }\n            }\n            // Scale burnArea and wellArea back up to original image resolution"
