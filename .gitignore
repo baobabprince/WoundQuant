@@ -1,0 +1,9 @@
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+/ml/data/
+/ml/runs/
+/tmp/
+.DS_Store
