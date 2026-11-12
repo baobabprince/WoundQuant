@@ -2,139 +2,269 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WoundQuant</title>
-<style>
-html,body{margin:0;min-height:100%;font-family:system-ui;background:#f1f5f9}
-#boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:99999;background:#f1f5f9}
-.box{background:#fff;border:1px solid #cbd5e1;padding:24px;border-radius:12px;text-align:center;max-width:400px}
-.spinner{width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:s .6s linear infinite;margin:0 auto 10px}
-@keyframes s{to{transform:rotate(360deg)}}
-</style>
+<meta name="description" content="Quantify burn / scratch wound closure in whole-well microscopy time series — in the browser, images never leave your computer.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230f766e'/%3E%3Cpath d='M16 8c4 2 7 4 6 9s-5 7-8 6-6-4-5-8 3-6 7-7z' fill='%23fecaca'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-<div id="boot"><div class="box"><div class="spinner"></div><p id="msg">טוען WoundQuant…</p></div></div>
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="#0f766e"/><path d="M16 8c4 2 7 4 6 9s-5 7-8 6-6-4-5-8 3-6 7-7z" fill="#fecaca"/></svg>
+    <div>
+      <h1>WoundQuant</h1>
+      <p data-i18n="tagline"></p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <span class="privacy-chip" data-i18n="privacyChip"></span>
+    <button type="button" class="btn ghost" id="btnLang" aria-label="Language"></button>
+  </div>
+</header>
+
+<div id="unsupported" class="banner error" hidden data-i18n="unsupported"></div>
+<div id="bootError" class="banner error" hidden></div>
+<noscript><div class="banner error">WoundQuant needs JavaScript. · האתר דורש JavaScript.</div></noscript>
+
+<main>
+  <!-- 1 · Load ------------------------------------------------------------>
+  <section class="card" id="cardLoad">
+    <h2><span class="step">1</span><span data-i18n="loadTitle"></span></h2>
+    <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-describedby="dropHint">
+      <strong data-i18n="dropMain"></strong>
+      <span id="dropHint" data-i18n="dropHint"></span>
+      <div class="row center">
+        <button type="button" class="btn" id="btnPickFolder" data-i18n="pickFolder"></button>
+        <button type="button" class="btn" id="btnPickFiles" data-i18n="pickFiles"></button>
+        <button type="button" class="btn ghost" id="btnExamples" data-i18n="loadExamples"></button>
+      </div>
+    </div>
+    <input type="file" id="inputFiles" multiple accept="image/*,.tif,.tiff" hidden>
+    <input type="file" id="inputFolder" webkitdirectory multiple hidden>
+    <div class="row between" id="loadSummaryRow" hidden>
+      <p id="loadSummary" class="summary" aria-live="polite"></p>
+      <button type="button" class="btn ghost small" id="btnClear" data-i18n="clearFiles"></button>
+    </div>
+    <p id="loadNote" class="note" hidden></p>
+  </section>
+
+  <!-- 2 · Analyse --------------------------------------------------------->
+  <section class="card" id="cardRun">
+    <h2><span class="step">2</span><span data-i18n="runTitle"></span></h2>
+    <div class="form-grid">
+      <label class="field">
+        <span data-i18n="engineLabel"></span>
+        <select id="selEngine"></select>
+        <small id="engineHelp"></small>
+      </label>
+      <label class="field">
+        <span data-i18n="pixelSizeLabel"></span>
+        <input type="number" id="inPixelSize" min="0" step="0.001" inputmode="decimal" placeholder="2.825">
+        <small data-i18n="pixelSizeHelp"></small>
+      </label>
+      <label class="field" id="customModelField" hidden>
+        <span data-i18n="customModelLabel"></span>
+        <input type="file" id="inModel" accept=".onnx">
+        <small id="customModelHelp" data-i18n="customModelHelp"></small>
+      </label>
+    </div>
+
+    <details id="advanced">
+      <summary data-i18n="advancedTitle"></summary>
+      <div class="form-grid">
+        <label class="field">
+          <span><span data-i18n="pSensitivity"></span> <output id="outSensitivity"></output></span>
+          <input type="range" id="pSensitivity" min="-1.5" max="1.5" step="0.1">
+          <small data-i18n="pSensitivityHelp"></small>
+        </label>
+        <label class="field">
+          <span><span data-i18n="pMargin"></span> <output id="outMargin"></output></span>
+          <input type="range" id="pMargin" min="0" max="0.15" step="0.005">
+          <small data-i18n="pMarginHelp"></small>
+        </label>
+        <label class="field">
+          <span><span data-i18n="pIslands"></span> <output id="outIslands"></output></span>
+          <input type="range" id="pIslands" min="0" max="0.3" step="0.005">
+          <small data-i18n="pIslandsHelp"></small>
+        </label>
+        <label class="field">
+          <span><span data-i18n="pMinRegion"></span> <output id="outMinRegion"></output></span>
+          <input type="range" id="pMinRegion" min="0" max="0.03" step="0.001">
+          <small data-i18n="pMinRegionHelp"></small>
+        </label>
+        <label class="field">
+          <span data-i18n="pWoundMode"></span>
+          <select id="pWoundMode">
+            <option value="largest" data-i18n="pWoundModeLargest"></option>
+            <option value="all" data-i18n="pWoundModeAll"></option>
+          </select>
+          <small data-i18n="pWoundModeHelp"></small>
+        </label>
+        <div class="field">
+          <span>&nbsp;</span>
+          <button type="button" class="btn ghost small" id="btnResetParams" data-i18n="resetParams"></button>
+        </div>
+      </div>
+    </details>
+
+    <div class="row">
+      <button type="button" class="btn primary" id="btnRun" disabled data-i18n="run"></button>
+      <button type="button" class="btn" id="btnPause" hidden data-i18n="pause"></button>
+      <button type="button" class="btn" id="btnCancel" hidden data-i18n="cancel"></button>
+      <span id="runHint" class="note inline"></span>
+    </div>
+    <div id="progressWrap" hidden>
+      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="progressBar"><div id="progressFill"></div></div>
+      <p id="progressText" class="summary" aria-live="polite"></p>
+    </div>
+    <details id="errorBox" class="banner error" hidden>
+      <summary id="errorSummary"></summary>
+      <ul id="errorList"></ul>
+    </details>
+  </section>
+
+  <!-- 3 · Review ---------------------------------------------------------->
+  <section class="card" id="cardReview" hidden>
+    <div class="row between wrap">
+      <h2><span class="step">3</span><span data-i18n="reviewTitle"></span></h2>
+      <div class="row wrap">
+        <button type="button" class="btn" id="btnCsv" data-i18n="exportCsv"></button>
+        <button type="button" class="btn" id="btnSummaryCsv" data-i18n="exportSummary"></button>
+        <button type="button" class="btn" id="btnTraining" data-i18n="exportTraining"></button>
+      </div>
+    </div>
+
+    <div class="workspace">
+      <aside class="series-pane">
+        <input type="search" id="seriesFilter" data-i18n-placeholder="filterPlaceholder">
+        <label class="check"><input type="checkbox" id="flaggedOnly"> <span data-i18n="flaggedOnly"></span></label>
+        <div class="series-head"><span data-i18n="colSeries"></span><span data-i18n="colClosure"></span></div>
+        <ul id="seriesList" class="series-list" role="listbox" tabindex="0" aria-label="Series"></ul>
+        <p id="seriesCount" class="note"></p>
+      </aside>
+
+      <div class="viewer-pane">
+        <div class="toolbar" role="toolbar">
+          <div class="tool-group" id="toolGroup">
+            <button type="button" class="tool active" data-tool="pan" data-i18n-title="toolPan"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg></button>
+            <button type="button" class="tool" data-tool="brush" data-i18n-title="toolBrush"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20c2.5 0 4-1.5 4-4l9.5-9.5a2.1 2.1 0 0 1 3 3L11 19c-2 1-4.5 1-7 1z"/><path d="M14 7l3 3"/></svg></button>
+            <button type="button" class="tool" data-tool="eraser" data-i18n-title="toolEraser"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20H9l-5-5a2 2 0 0 1 0-2.8l8.2-8.2a2 2 0 0 1 2.8 0l5 5a2 2 0 0 1 0 2.8L11 20"/><path d="M8 9l7 7"/></svg></button>
+            <button type="button" class="tool" data-tool="polygon" data-i18n-title="toolPolygon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8l7-4 7 5-2 9-9 1z"/><circle cx="5" cy="8" r="1.6" fill="currentColor"/><circle cx="12" cy="4" r="1.6" fill="currentColor"/><circle cx="19" cy="9" r="1.6" fill="currentColor"/><circle cx="17" cy="18" r="1.6" fill="currentColor"/><circle cx="8" cy="19" r="1.6" fill="currentColor"/></svg></button>
+          </div>
+          <label class="brush-size" data-i18n-title="brushSize">
+            <input type="range" id="brushSize" min="4" max="200" step="2" value="40">
+          </label>
+          <button type="button" class="tool" id="btnUndo" data-i18n-title="undo" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+          <button type="button" class="tool" id="btnResetMask" data-i18n-title="resetMask" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
+          <span class="spacer"></span>
+          <label class="check"><input type="checkbox" id="chkOverlay" checked> <span data-i18n="showOverlay"></span></label>
+          <button type="button" class="tool" id="btnZoomOut" data-i18n-title="zoomOut">−</button>
+          <button type="button" class="tool" id="btnZoomFit" data-i18n-title="zoomFit"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+          <button type="button" class="tool" id="btnZoomIn" data-i18n-title="zoomIn">+</button>
+          <button type="button" class="tool" id="btnSavePng" data-i18n-title="savePng"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
+        </div>
+        <div class="canvas-wrap" id="canvasWrap">
+          <canvas id="viewCanvas" tabindex="0"></canvas>
+          <div id="viewerMessage" class="viewer-message" hidden></div>
+        </div>
+        <p id="polygonHint" class="note" hidden data-i18n="polygonHint"></p>
+        <div class="timeline">
+          <button type="button" class="tool" id="btnPrev" data-i18n-title="prevTime">‹</button>
+          <input type="range" id="timeSlider" min="0" max="0" step="1" value="0" aria-label="Time point">
+          <button type="button" class="tool" id="btnNext" data-i18n-title="nextTime">›</button>
+          <span id="timeLabel" class="time-label"></span>
+        </div>
+        <p id="fileLabel" class="file-label"></p>
+        <div class="legend">
+          <span><i class="sw wound"></i><span data-i18n="legendWound"></span></span>
+          <span><i class="sw free"></i><span data-i18n="legendFree"></span></span>
+          <span><i class="sw outside"></i><span data-i18n="legendOutside"></span></span>
+        </div>
+      </div>
+
+      <div class="info-pane">
+        <div class="metrics" id="metrics">
+          <div class="metric"><span data-i18n="mWoundArea"></span><b id="mWoundArea">–</b></div>
+          <div class="metric"><span data-i18n="mWoundPct"></span><b id="mWoundPct">–</b></div>
+          <div class="metric"><span data-i18n="mAreaT0"></span><b id="mAreaT0">–</b></div>
+          <div class="metric" data-i18n-title="mAreaDropHelp"><span data-i18n="mAreaDrop"></span><b id="mAreaDrop">–</b><small id="mAreaDropAbs"></small></div>
+          <div class="metric"><span data-i18n="mClosure"></span><b id="mClosure">–</b></div>
+          <div class="metric"><span data-i18n="mConfluence"></span><b id="mConfluence">–</b></div>
+          <div class="metric"><span data-i18n="mT0Closure"></span><b id="mT0Closure">–</b></div>
+          <div class="metric"><span data-i18n="mRate"></span><b id="mRate">–</b></div>
+        </div>
+        <p id="sourceLine" class="note"></p>
+        <ul id="qcList" class="qc-list"></ul>
+        <p id="seriesSummary" class="summary"></p>
+        <p id="seriesWarning" class="note warn" hidden></p>
+        <div class="chart-head">
+          <h3 data-i18n="chartClosure"></h3>
+          <label class="check"><input type="checkbox" id="chkAllSeries"> <span data-i18n="showAllSeries"></span></label>
+        </div>
+        <div class="chart-box"><canvas id="chartClosure"></canvas></div>
+        <div class="chart-head">
+          <h3 data-i18n="chartArea"></h3>
+          <select id="selAreaChart" class="mini-select" data-i18n-title="areaChartMode">
+            <option value="t0" data-i18n="areaModeT0"></option>
+            <option value="abs" data-i18n="areaModeAbs"></option>
+            <option value="well" data-i18n="areaModeWell"></option>
+          </select>
+        </div>
+        <div class="chart-box"><canvas id="chartArea"></canvas></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlgTraining">
+  <form method="dialog">
+    <h3 data-i18n="trainingTitle"></h3>
+    <p data-i18n="trainingIntro"></p>
+    <label class="check"><input type="radio" name="trainWhich" value="manual" checked> <span id="trainManualLabel"></span></label>
+    <label class="check"><input type="radio" name="trainWhich" value="all"> <span id="trainAllLabel"></span></label>
+    <p class="note" data-i18n="trainingNote"></p>
+    <div class="row end">
+      <button class="btn" value="cancel" data-i18n="cancel"></button>
+      <button class="btn primary" value="ok" id="btnTrainingOk" data-i18n="export"></button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<footer>
+  <p>
+    <span id="analyticsNotice"></span>
+    <button type="button" class="link" id="btnOptOut" hidden></button>
+  </p>
+  <p>
+    WoundQuant <span id="appVersion"></span> ·
+    <a href="https://github.com/baobabprince/WoundQuant" target="_blank" rel="noopener">GitHub</a> ·
+    <span data-i18n="shortcutsHint"></span>
+  </p>
+</footer>
+
+<script src="config.js"></script>
+<script src="vendor/chart.umd.min.js"></script>
+<script type="module" src="js/main.js"></script>
 <script>
-(async()=>{
-  var msg=document.getElementById("msg");
-  try{
-    var t="?v=36";
-    var appRes=await fetch("https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/index.html"+t);
-    if(!appRes.ok) throw new Error("app "+appRes.status);
-    var boostRes=await fetch("boost.json"+t);
-    if(!boostRes.ok) boostRes=await fetch("https://raw.githubusercontent.com/baobabprince/WoundQuant/master/boost.json"+t);
-    if(!boostRes.ok) throw new Error("boost "+boostRes.status);
-    var html=await appRes.text();
-    var B=await boostRes.json();
-    if(html.length<10000) throw new Error("too small");
-    function rep(a,b){ if(a&&b&&html.indexOf(a)>=0) html=html.replace(a,b); }
-
-    rep("const maxDim = 350;","const maxDim = 650;");
-
-    rep(
-      "let manualMasks = new Map(); // key: seriesKey_hours, value: Uint8Array\nlet savedPolygons = new Map(); // key: seriesKey_hours, value: Array of polygon points\nlet isAnnotationMode = false;\nlet currentDrawingTool = 'brush'; // 'brush', 'eraser', 'polygon'\nlet brushSize = 15;\nlet polygonPoints = []; // [{x, y}, ...]\nlet isDrawing = false;\nlet currentZoomLevel = 1.0;",
-      "let manualMasks = new Map();\nlet savedPolygons = new Map();\nlet annotationSource = new Map();\nlet isAnnotationMode = false;\nlet currentDrawingTool = 'brush';\nlet brushSize = 15;\nlet polygonPoints = [];\nlet isDrawing = false;\nlet currentZoomLevel = 1.0;\nlet annotationUndoStack = [];\nconst ANNOTATION_STORAGE_KEY = 'woundquant_annotations_v1';\nconst RESULTS_STORAGE_KEY = 'woundquant_results_v1';\nconst MAX_UNDO = 30;"
-    );
-
-    rep(B.highconf_old, B.highconf_new);
-    rep("function getActiveManualMask(res) {", B.storage+"function getActiveManualMask(res) {");
-
-    rep(
-      "const scaleFactor = (res.width * res.height > 0) ? (res.imgData.width * res.imgData.height) / (res.width * res.height) : 1;\n            res.burnArea = Math.round(burnArea * scaleFactor);",
-      "let wellPx=0; if(res.wellMask){for(let wi=0;wi<res.wellMask.length;wi++)if(res.wellMask[wi]>0)wellPx++;}\n            const scaleFactor=(wellPx>0&&res.wellArea)?(res.wellArea/wellPx):1;\n            res.burnArea=Math.round(burnArea*scaleFactor);\n            res.source='manual';"
-    );
-
-    rep('accept="image/*"','accept="image/*,.tif,.tiff,image/tiff"');
-    rep(
-      '<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>',
-      '<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>\n    <script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js"><\/script>'
-    );
-
-    rep(
-      "    filesMap.clear();\n    let loadedCount = 0;\n\n    for (const fileName of exampleFilenames) {\n        try {\n            const encodedName = encodeURIComponent(fileName);\n            const response = await fetch(`./examples/${encodedName}`);\n            if (!response.ok) continue;\n            const blob = await response.blob();\n            const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });\n\n            const match = fileName.match(FILENAME_REGEX);\n            if (match) {\n                const { well, site, days, hours, mins } = match.groups;\n                const totalHours = parseInt(days)*24 + parseInt(hours) + parseInt(mins)/60;\n                const seriesKey = `${well}_Site${site}`;\n\n                if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n                filesMap.get(seriesKey).push({ file, hours: totalHours, well, site });\n                loadedCount++;\n            }\n        } catch (e) {\n            console.warn(`Could not load ./examples/${fileName}`, e);\n        }\n    }",
-      "    filesMap.clear();\n    const CDN='https://cdn.jsdelivr.net/gh/baobabprince/WoundQuant@1c657ff/examples/';\n    const results=await Promise.all(exampleFilenames.map(async(fileName)=>{\n      try{\n        const r=await fetch(CDN+encodeURIComponent(fileName));\n        if(!r.ok)return null;\n        const blob=await r.blob();\n        return new File([blob],fileName,{type:blob.type||'image/jpeg'});\n      }catch(e){return null;}\n    }));\n    let loadedCount=0;\n    for(const file of results){\n      if(!file)continue;\n      const match=file.name.match(FILENAME_REGEX);\n      if(!match)continue;\n      const {well,site,days,hours,mins}=match.groups;\n      const totalHours=parseInt(days)*24+parseInt(hours)+parseInt(mins)/60;\n      const seriesKey=`${well}_Site${site}`;\n      if(!filesMap.has(seriesKey))filesMap.set(seriesKey,[]);\n      filesMap.get(seriesKey).push({file,hours:totalHours,well,site});\n      loadedCount++;\n    }"
-    );
-
-    rep(
-      "    files.forEach(file => {\n        const match = file.name.match(FILENAME_REGEX);\n        if (match) {\n            const { well, site, days, hours, mins } = match.groups;\n            const totalHours = parseInt(days)*24 + parseInt(hours) + parseInt(mins)/60;\n            const seriesKey = `${well}_Site${site}`;\n\n            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n            filesMap.get(seriesKey).push({ file, hours: totalHours, well, site });\n        }\n    });\n\n    statusBadge.innerText = dict.loadedManual(files.length);\n    populateSeriesDropdown();",
-      "    let matched = 0, unmatched = 0;\n    files.forEach(function(file) {\n        const match = file.name.match(FILENAME_REGEX);\n        if (match) {\n            const g = match.groups;\n            const totalHours = parseInt(g.days)*24 + parseInt(g.hours) + parseInt(g.mins)/60;\n            const seriesKey = g.well + '_Site' + g.site;\n            if (!filesMap.has(seriesKey)) filesMap.set(seriesKey, []);\n            filesMap.get(seriesKey).push({ file: file, hours: totalHours, well: g.well, site: g.site });\n            matched++;\n        } else {\n            if (!filesMap.has('Upload')) filesMap.set('Upload', []);\n            filesMap.get('Upload').push({ file: file, hours: unmatched, well: 'X', site: '1' });\n            unmatched++;\n        }\n    });\n    statusBadge.innerText = dict.loadedManual(matched + unmatched);\n    populateSeriesDropdown();"
-    );
-
-    rep(
-      "let processedGray = sharpenedGray;\n            if (textureFilter === 'entropy') {\n                processedGray = computeLocalEntropy(sharpenedGray, w, h, textureRadius);\n            } else if (textureFilter === 'variance') {\n                processedGray = computeLocalVariance(sharpenedGray, w, h, textureRadius);\n            }",
-      "var adaptiveR = Math.max(2, Math.min(4, textureRadius|0 || 3));\n            let processedGray = sharpenedGray;\n            if (textureFilter === 'entropy' || !textureFilter) {\n                processedGray = computeLocalEntropy(sharpenedGray, w, h, adaptiveR);\n            } else if (textureFilter === 'variance') {\n                processedGray = computeLocalVariance(sharpenedGray, w, h, adaptiveR);\n            }"
-    );
-
-    rep("ChanVeseJS(processedGray, wellMask, w, h, initMask, 40, 2, 1.0, 1.0);","ChanVeseJS(processedGray, wellMask, w, h, initMask, 12, 2, 1.0, 1.0);");
-    rep("let burnSeed = erode(closedBinary, w, h, 12);","let burnSeed = erode(closedBinary, w, h, 5);");
-
-    rep(
-      '<option value="none" selected>ללא (None - Raw Grayscale)</option>',
-      '<option value="none">ללא (None - Raw Grayscale)</option>'
-    );
-    rep(
-      '<option value="entropy">אנטרופיה מקומית (Local Entropy)</option>',
-      '<option value="entropy" selected>אנטרופיה מקומית (Local Entropy)</option>'
-    );
-    rep(
-      '<option value="largest" selected>הרכיב הקשיר הגדול ביותר בלבד</option>',
-      '<option value="largest">הרכיב הקשיר הגדול ביותר בלבד</option>'
-    );
-    rep(
-      '<option value="chan_vese">סגמנטציית אקטיב קונטור במרחב-זמן (Chan-Vese)</option>',
-      '<option value="chan_vese" selected>סגמנטציית אקטיב קונטור במרחב-זמן (Chan-Vese)</option>'
-    );
-    rep(
-      'id="invertThreshCheckbox" onchange="renderPreview()"',
-      'id="invertThreshCheckbox" checked onchange="renderPreview()"'
-    );
-
-    rep(
-      "        img.src = URL.createObjectURL(fileItem.file);\n    });\n}",
-      "        (async function(){\n          try {\n            var f = fileItem.file;\n            var nm = (f.name || '').toLowerCase();\n            var isTiff = nm.endsWith('.tif') || nm.endsWith('.tiff');\n            if (isTiff && typeof UTIF !== 'undefined') {\n              var buf = await f.arrayBuffer();\n              var ifds = UTIF.decode(buf);\n              UTIF.decodeImage(buf, ifds[0]);\n              var rgba = new Uint8ClampedArray(UTIF.toRGBA8(ifds[0]));\n              var tc = document.createElement('canvas');\n              tc.width = ifds[0].width; tc.height = ifds[0].height;\n              tc.getContext('2d').putImageData(new ImageData(rgba, tc.width, tc.height), 0, 0);\n              tc.toBlob(function(blob){ img.src = URL.createObjectURL(blob); }, 'image/png');\n            } else {\n              img.src = URL.createObjectURL(f);\n            }\n          } catch (err) {\n            console.error(err);\n            img.src = URL.createObjectURL(fileItem.file);\n          }\n        })();\n    });\n}"
-    );
-
-    rep(
-      "function getActiveImageKey() {\n    const seriesKey = selectSeries.value;\n    const timeVal = parseFloat(selectTime.value);\n    if (!seriesKey || isNaN(timeVal)) return null;\n    return `${seriesKey}_${timeVal}`;\n}",
-      "function getActiveImageKey() {\n    var seriesKey = selectSeries.value;\n    var timeVal = parseFloat(selectTime.value);\n    if (!seriesKey || isNaN(timeVal)) return null;\n    return seriesKey + '_' + timeVal;\n}"
-    );
-    rep(
-      "function onDrawingEnd() {\n    isDrawing = false;\n}",
-      "function onDrawingEnd() {\n    if (isDrawing && isAnnotationMode) {\n      try { var key = getActiveImageKey(); if (key) annotationSource.set(key, 'manual'); persistAnnotations(); } catch (e) {}\n    }\n    isDrawing = false;\n}"
-    );
-
-    rep(
-      "updateLanguage();\ntoggleTextureControls();\n<\/script>",
-      "updateLanguage();\ntoggleTextureControls();\nloadAnnotationsFromStorage();\n<\/script>"
-    );
-
-    rep(
-      "function clearManualMask() {\n    if (!lastResult) return;\n    const mask = getActiveManualMask(lastResult);\n    if (mask) {\n        mask.fill(0);\n    }\n    const key = getActiveImageKey();\n    if (key) {\n        savedPolygons.delete(key);\n    }\n    polygonPoints = [];\n    renderPreview(true);\n}",
-      "function clearManualMask() {\n    if (!lastResult || !lastResult.finalMask) return;\n    var key = null;\n    try { key = getActiveImageKey(); } catch(e) {}\n    if (!key) {\n      try { key = selectSeries.value + '_' + parseFloat(selectTime.value); } catch(e) {}\n    }\n    if (!key) return;\n    var empty = new Uint8Array(lastResult.finalMask.length);\n    manualMasks.set(key, empty);\n    try { savedPolygons.delete(key); } catch(e) {}\n    try { annotationSource.set(key, 'cleared'); } catch(e) {}\n    lastResult.finalMask.fill(0);\n    lastResult.burnArea = 0;\n    polygonPoints = [];\n    try { persistAnnotations(); } catch(e) {}\n    try {\n      var sk2 = selectSeries.value;\n      var hv = selectTime ? parseFloat(selectTime.value) : NaN;\n      if (sk2 && processedResults[sk2]) {\n        var row = processedResults[sk2].find(function(r){ return Math.abs(r.hours-hv)<1e-6; });\n        if (row) { row.area = 0; row.burnPercent = 0; row.confluency = 100; row.source = 'cleared'; }\n      }\n    } catch(e) {}\n    renderPreview(true);\n}"
-    );
-    rep(
-      "function exportResultsCSV() {",
-      "function downloadAnnotatedImage(){\n  try{\n    if(!mainCanvas||mainCanvas.width<2){alert('אין תמונה להורדה');return;}\n    var link=document.createElement('a');\n    var name='woundquant_annotated.png';\n    try{var t=document.getElementById('currentFilenameText');if(t&&t.innerText)name=t.innerText.replace(/\\.[^.]+$/,'')+'_annotated.png';}catch(e){}\n    link.download=name;\n    link.href=mainCanvas.toDataURL('image/png');\n    link.click();\n  }catch(e){alert(e.message);}\n}\nfunction exportResultsCSV() {"
-    );
-    rep(
-      '<button class="btn-secondary" id="btnExportCSV"',
-      '<button class="btn-secondary" id="btnDownloadAnnotated" onclick="downloadAnnotatedImage()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;">📸 הורד תמונה עם סימון</button>\n            <button class="btn-secondary" id="btnExportCSV"'
-    );
-
-    rep(
-      "            // Scale burnArea and wellArea back up to original image resolution",
-      "            if (wellArea > 50 && burnArea / wellArea > 0.55) {\n                for (let i = 0; i < finalMask.length; i++) {\n                    if (wellMask[i] > 0) finalMask[i] = finalMask[i] > 0 ? 0 : 255;\n                    else finalMask[i] = 0;\n                }\n                finalMask = largestCCFilled(finalMask, w, h);\n                for (let i = 0; i < finalMask.length; i++) if (wellMask[i] === 0) finalMask[i] = 0;\n                burnArea = 0; wellArea = 0;\n                for (let i = 0; i < finalMask.length; i++) {\n                    if (wellMask[i] > 0) wellArea++;\n                    if (finalMask[i] > 0) burnArea++;\n                }\n            }\n            // Scale burnArea and wellArea back up to original image resolution"
-    );
-
-    var boot=document.getElementById('boot');
-    if(boot) boot.remove();
-    document.open();
-    document.write(html);
-    document.close();
-  }catch(e){
-    msg.textContent="שגיאה: "+e.message;
-    console.error(e);
+// Plain script on purpose: it still runs where the module above cannot
+// (page opened as a file, or a very old browser) and says what to do.
+(function () {
+  var box = document.getElementById('bootError');
+  function show(html) { box.innerHTML = html; box.hidden = false; }
+  if (location.protocol === 'file:') {
+    show('<b>האתר לא יכול לרוץ מקובץ מקומי.</b> יש להריץ שרת מקומי בתיקיית הפרויקט – <code dir="ltr">npm start</code> או <code dir="ltr">python -m http.server</code> – ולפתוח את הכתובת שמודפסת.' +
+      '<br><span dir="ltr"><b>This page cannot run from a local file.</b> Start a local server in the project folder — <code>npm start</code> or <code>python -m http.server</code> — and open the address it prints.</span>');
+    return;
   }
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      if (!window.__wq) show('<b>הטעינה נכשלה.</b> נסו לרענן; אם זה חוזר, הדפדפן כנראה ישן מדי (נדרש Chrome / Edge / Firefox / Safari עדכני).' +
+        '<br><span dir="ltr"><b>The app failed to start.</b> Try reloading; if it happens again the browser is probably too old (a current Chrome, Edge, Firefox or Safari is needed).</span>');
+    }, 4000);
+  });
 })();
 </script>
 </body>

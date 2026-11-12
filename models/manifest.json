@@ -1,0 +1,29 @@
+{
+  "models": [
+    {
+      "id": "woundquant-bootstrap-v0",
+      "name": "Neural network – starter model v0",
+      "file": "woundquant-bootstrap-v0.onnx",
+      "input": {
+        "layout": "NCHW",
+        "channels": [
+          "mean",
+          "texture",
+          "texture_relative",
+          "well"
+        ],
+        "multiple": 32,
+        "output": "logits_cell_free"
+      },
+      "trained": "2026-11-12",
+      "training": {
+        "samples": 11,
+        "hand_corrected": 0,
+        "validation_samples": 0,
+        "validation": null,
+        "epochs": 60,
+        "validation_note": "Leave-one-well-out against classical pseudo-labels (IoU of the cell-free mask, 40 epochs): B1 0.81, B8 0.90, C6 0.73"
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "woundquant",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Browser-based quantification of burn/scratch wound closure in whole-well microscopy time series",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node --test tests/unit/*.test.mjs",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "analyze": "node tools/analyze.mjs",
+    "export-dataset": "node tools/export-dataset.mjs",
+    "vendor": "node tools/vendor.mjs"
+  },
+  "devDependencies": {
+    "chart.js": "^4.4.0",
+    "jpeg-js": "^0.4.4",
+    "onnxruntime-web": "^1.20.0",
+    "pako": "^2.1.0",
+    "pngjs": "^7.0.0",
+    "puppeteer-core": "^24.0.0",
+    "utif": "^3.1.0"
+  }
+}

@@ -1,10 +1,7 @@
-FROM python:3.10-slim
-
+# Static site: any web server works. This image serves it with Node.
+FROM node:22-alpine
 WORKDIR /app
-
 COPY . .
-
+ENV PORT=10000
 EXPOSE 10000
-
-# Serve the current directory on the port provided by the PORT environment variable (default to 10000)
-CMD ["python", "-c", "import http.server, os, socketserver; port = int(os.environ.get('PORT', 10000)); handler = http.server.SimpleHTTPRequestHandler; httpd = socketserver.TCPServer(('', port), handler); print(f'Serving on port {port}'); httpd.serve_forever()"]
+CMD ["node", "tools/serve.mjs"]
