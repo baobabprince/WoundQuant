@@ -187,6 +187,8 @@
         <div class="metrics" id="metrics">
           <div class="metric"><span data-i18n="mWoundArea"></span><b id="mWoundArea">–</b></div>
           <div class="metric"><span data-i18n="mWoundPct"></span><b id="mWoundPct">–</b></div>
+          <div class="metric"><span data-i18n="mAreaT0"></span><b id="mAreaT0">–</b></div>
+          <div class="metric" data-i18n-title="mAreaDropHelp"><span data-i18n="mAreaDrop"></span><b id="mAreaDrop">–</b><small id="mAreaDropAbs"></small></div>
           <div class="metric"><span data-i18n="mClosure"></span><b id="mClosure">–</b></div>
           <div class="metric"><span data-i18n="mConfluence"></span><b id="mConfluence">–</b></div>
           <div class="metric"><span data-i18n="mT0Closure"></span><b id="mT0Closure">–</b></div>
@@ -201,7 +203,14 @@
           <label class="check"><input type="checkbox" id="chkAllSeries"> <span data-i18n="showAllSeries"></span></label>
         </div>
         <div class="chart-box"><canvas id="chartClosure"></canvas></div>
-        <h3 data-i18n="chartArea"></h3>
+        <div class="chart-head">
+          <h3 data-i18n="chartArea"></h3>
+          <select id="selAreaChart" class="mini-select" data-i18n-title="areaChartMode">
+            <option value="t0" data-i18n="areaModeT0"></option>
+            <option value="abs" data-i18n="areaModeAbs"></option>
+            <option value="well" data-i18n="areaModeWell"></option>
+          </select>
+        </div>
         <div class="chart-box"><canvas id="chartArea"></canvas></div>
       </div>
     </div>

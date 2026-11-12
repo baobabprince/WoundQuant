@@ -29,7 +29,7 @@ export function emit(event, detail) {
 }
 
 function loadSettings() {
-  const base = { lang: null, pixelSizeUm: null, engine: 'classical', params: { ...DEFAULT_PARAMS }, showAllSeries: false };
+  const base = { lang: null, pixelSizeUm: null, engine: 'classical', params: { ...DEFAULT_PARAMS }, showAllSeries: false, areaChart: 't0' };
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
     return { ...base, ...saved, params: normalizeParams(saved.params || {}) };

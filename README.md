@@ -22,8 +22,16 @@ series. Runs entirely in the browser — images never leave the computer.
    surface and takes the main cell-free region as the wound.
 3. **Over time** — groups images into wells by file name, orders them by time,
    and reports per image: wound area (px, mm²), wound share of the well, cell
-   coverage, cumulative closure %, closure inside the initial wound region, and
-   closure rate; per well: final / maximum closure, mean rate, T50.
+   coverage, **wound area at time 0 and how far it has dropped since** (absolute
+   and as % of the time-0 area), cumulative closure %, closure inside the initial
+   wound region, and closure rate; per well: time-0 and final area, total area
+   drop, final / maximum closure, mean rate, T50.
+
+   Two related percentages, on purpose: *area drop* = (A₀ − Aₜ)/A₀ on the measured
+   areas as they are; *cumulative closure* does the same on the wound's share of
+   the growth area, which cancels small frame-to-frame changes in the detected
+   growth area. They normally differ by a few points. "Time 0" is the first
+   analysed image of the series.
 4. **Quality flags** — no growth area, no wound, wound > 60 % of the well, wound
    at the rim, low contrast, wound grew since the previous time point. A well
    whose cell-free area grows over time is marked as unreliable instead of

@@ -147,3 +147,9 @@ html[dir="rtl"] .metric b { text-align: right; }
 .banner code { background: rgba(0, 0, 0, 0.06); padding: 1px 5px; border-radius: 4px; }
 main > .banner, body > .banner { margin: 12px 24px 0; }
 canvas { direction: ltr; }
+
+.metric small { font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: plaintext; }
+html[dir="rtl"] .metric small { text-align: right; }
+select.mini-select { width: auto; min-height: 0; flex: none; font-size: 0.8rem; padding: 3px 6px; border-radius: 6px; max-width: 55%; }
+.chart-head h3 { margin: 0; }
+.metric { align-content: start; }

@@ -44,6 +44,8 @@ function num(v, digits) {
 /** One row per series (well). @returns {number} rows written */
 export function exportSummaryCsv() {
   const head = ['series', 'plate', 'well', 'site', 'time_points', 'analysed', 'baseline_wound_pct_of_well',
+    'wound_area_t0_px', 'wound_area_t0_mm2', 'final_wound_area_px', 'final_wound_area_mm2',
+    'final_area_reduction_px', 'final_area_reduction_mm2', 'final_area_reduction_pct',
     'final_closure_pct', 'max_closure_pct', 'mean_rate_pct_per_h', 't50_hours', 'flagged_images', 'hand_corrected_images'];
   const lines = [head.join(',')];
   let rows = 0;
@@ -53,6 +55,8 @@ export function exportSummaryCsv() {
     if (!sm.analysed) continue;
     rows++;
     lines.push([q(s.label), q(s.plate || s.folder), q(s.well), q(s.site), sm.n, sm.analysed, num(sm.baselineWoundPct, 2),
+      num(sm.baselineWoundAreaPx, 0), num(sm.baselineWoundAreaMm2, 4), num(sm.finalWoundAreaPx, 0), num(sm.finalWoundAreaMm2, 4),
+      num(sm.finalAreaReductionPx, 0), num(sm.finalAreaReductionMm2, 4), num(sm.finalAreaReductionPct, 2),
       num(sm.finalClosurePct, 2), num(sm.maxClosurePct, 2), num(sm.meanRatePctPerH, 4), num(sm.t50Hours, 1), sm.flagged,
       s.items.filter((it) => it.result && it.result.source === 'manual').length].join(','));
   }

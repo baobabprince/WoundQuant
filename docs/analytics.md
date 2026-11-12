@@ -57,6 +57,7 @@ stores no personal identifier.
 | `mask_reset` | | |
 | `export` | `kind` (csv, summary_csv, training_zip, overlay_png), `rows` / `samples`, `manual` | What do users take away? |
 | `filter_flagged`, `chart_all_series` | `on` | |
+| `area_chart_mode` | `mode` (t0, abs, well) | Which view of the wound area do users prefer? |
 | `language_changed` | `lang` | |
 | `error` | `where`, `count`, `kind` (short error code) | Where does it break? |
 | `session_summary` | `series_opened`, `edits`, `minutes` — once, when the tab is hidden | How much review work per visit? |

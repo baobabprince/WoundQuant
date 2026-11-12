@@ -55,6 +55,12 @@ export function slope(xs, ys) {
  *                   cells at time t (insensitive to what happens elsewhere
  *                   in the well; comparable to IncuCyte "wound confluence").
  * ratePctPerH       change of closurePct per hour since the previous point.
+ * woundAreaT0Px     wound area at time 0 (the first analysed image of the series).
+ * areaReductionPx   how much of that area is gone at time t: A₀ − Aₜ, in image
+ *                   pixels (…Mm2 with a pixel size). Negative = the wound grew.
+ * areaReductionPct  the same as a share of the time-0 area: 100·(A₀ − Aₜ)/A₀.
+ *                   Unlike closurePct this uses the measured areas as they are,
+ *                   without normalising to the growth area of each image.
  *
  * @param {Array<{time:number, hours:(number|null), result:(object|null)}>} points  sorted by time
  * @returns {{points:Array<object>, summary:object}}
@@ -70,7 +76,8 @@ export function seriesMetrics(points, pixelSizeUm = null) {
     if (!r) { out.push({ time: pt.time, hours: pt.hours, analysed: false }); continue; }
     const m = imageMetrics(r, pixelSizeUm);
     const row = { time: pt.time, hours: pt.hours, analysed: true, ...m, source: r.source, engine: r.engine, qc: [...r.qc],
-      closurePct: null, t0RegionClosurePct: null, ratePctPerH: null };
+      closurePct: null, t0RegionClosurePct: null, ratePctPerH: null,
+      woundAreaT0Px: null, woundAreaT0Mm2: null, areaReductionPx: null, areaReductionMm2: null, areaReductionPct: null };
 
     if (!base) {
       base = { r, m };
@@ -95,6 +102,14 @@ export function seriesMetrics(points, pixelSizeUm = null) {
         row.t0RegionClosurePct = region ? (100 * covered) / region : null;
       }
     }
+    // Wound area at time 0 and how far it has dropped since.
+    row.woundAreaT0Px = base.m.woundAreaPx;
+    row.woundAreaT0Mm2 = base.m.woundAreaMm2;
+    if (base.m.woundAreaPx > 0) {
+      row.areaReductionPx = base.m.woundAreaPx - m.woundAreaPx;
+      row.areaReductionPct = (100 * row.areaReductionPx) / base.m.woundAreaPx;
+      if (base.m.woundAreaMm2 !== null && m.woundAreaMm2 !== null) row.areaReductionMm2 = base.m.woundAreaMm2 - m.woundAreaMm2;
+    }
     if (prev && row.closurePct !== null && prev.closurePct !== null && pt.hours !== null && prev.hours !== null && pt.hours > prev.hours) {
       row.ratePctPerH = (row.closurePct - prev.closurePct) / (pt.hours - prev.hours);
     }
@@ -110,6 +125,12 @@ export function seriesMetrics(points, pixelSizeUm = null) {
     analysed: out.filter((p) => p.analysed).length,
     baselineWoundPct: base ? base.m.woundPct : null,
     baselineWoundAreaPx: base ? base.m.woundAreaPx : null,
+    baselineWoundAreaMm2: base ? base.m.woundAreaMm2 : null,
+    finalWoundAreaPx: done.length ? done[done.length - 1].woundAreaPx : null,
+    finalWoundAreaMm2: done.length ? done[done.length - 1].woundAreaMm2 : null,
+    finalAreaReductionPx: done.length ? done[done.length - 1].areaReductionPx : null,
+    finalAreaReductionMm2: done.length ? done[done.length - 1].areaReductionMm2 : null,
+    finalAreaReductionPct: done.length ? done[done.length - 1].areaReductionPct : null,
     finalClosurePct: done.length ? done[done.length - 1].closurePct : null,
     maxClosurePct: done.length ? Math.max(...done.map((p) => p.closurePct)) : null,
     meanRatePctPerH: timed.length >= 2 ? slope(timed.map((p) => p.hours), timed.map((p) => p.closurePct)) : null,

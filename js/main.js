@@ -473,6 +473,12 @@ function engineName(id) {
   return t('engineNameModel', { id: m ? m.name || m.id : key });
 }
 
+/** An area in mm² when the pixel size is known, otherwise in pixels. */
+function areaText(px, mm2) {
+  if (px === null || px === undefined) return '–';
+  return mm2 !== null && mm2 !== undefined ? `${fmt(mm2, 2)} mm²` : `${Math.round(px).toLocaleString('en-US')} px`;
+}
+
 /** Metric cards, QC notes, series summary and charts of the selection. */
 function renderCurrentNumbers() {
   const s = currentSeries();
@@ -482,9 +488,11 @@ function renderCurrentNumbers() {
   const p = metrics.points[state.selected.item];
   const set = (id, text) => { $(id).textContent = text; };
   if (p && p.analysed) {
-    const um = state.settings.pixelSizeUm;
-    set('mWoundArea', um ? `${fmt(p.woundAreaMm2, 2)} mm²` : `${Math.round(p.woundAreaPx).toLocaleString('en-US')} px`);
+    set('mWoundArea', areaText(p.woundAreaPx, p.woundAreaMm2));
     set('mWoundPct', fmt(p.woundPct, 1) + '%');
+    set('mAreaT0', areaText(p.woundAreaT0Px, p.woundAreaT0Mm2));
+    set('mAreaDrop', p.areaReductionPct === null ? '–' : fmt(p.areaReductionPct, 1) + '%');
+    set('mAreaDropAbs', p.areaReductionPx === null ? '' : areaText(p.areaReductionPx, p.areaReductionMm2));
     set('mClosure', p.closurePct === null ? '–' : fmt(p.closurePct, 1) + '%');
     set('mConfluence', fmt(p.confluencePct, 1) + '%');
     set('mT0Closure', p.t0RegionClosurePct === null ? '–' : fmt(p.t0RegionClosurePct, 1) + '%');
@@ -492,13 +500,17 @@ function renderCurrentNumbers() {
     $('sourceLine').textContent = p.source === 'manual' ? t('sourceManual') : t('sourceAuto', { engine: engineName(p.engine) });
     $('qcList').replaceChildren(...p.qc.map((code) => Object.assign(document.createElement('li'), { textContent: t('qc_' + code) })));
   } else {
-    for (const id of ['mWoundArea', 'mWoundPct', 'mClosure', 'mConfluence', 'mT0Closure', 'mRate']) set(id, '–');
+    for (const id of ['mWoundArea', 'mWoundPct', 'mAreaT0', 'mAreaDrop', 'mClosure', 'mConfluence', 'mT0Closure', 'mRate']) set(id, '–');
+    set('mAreaDropAbs', '');
     $('sourceLine').textContent = it.status === 'error' ? `✕ ${it.error}` : '';
     $('qcList').replaceChildren();
   }
   const sm = metrics.summary;
   $('seriesSummary').textContent = sm.analysed && sm.baselineWoundPct !== null ? t('seriesSummaryLine', {
     base: fmt(sm.baselineWoundPct, 1),
+    area0: areaText(sm.baselineWoundAreaPx, sm.baselineWoundAreaMm2),
+    areaEnd: areaText(sm.finalWoundAreaPx, sm.finalWoundAreaMm2),
+    drop: sm.finalAreaReductionPct === null ? '–' : fmt(sm.finalAreaReductionPct, 1),
     final: sm.finalClosurePct === null ? '–' : fmt(sm.finalClosurePct, 1),
     rate: sm.meanRatePctPerH === null ? '–' : fmt(sm.meanRatePctPerH, 2),
     t50: sm.t50Hours === null ? '–' : `${fmt(sm.t50Hours, 1)} h`,
@@ -511,7 +523,8 @@ function renderCurrentNumbers() {
   const others = $('chkAllSeries').checked
     ? state.series.filter((o) => o !== s && o.timeUnit === s.timeUnit).map((o) => metricsOf(o).points)
     : [];
-  charts.update({ timeUnit: s.timeUnit, points: metrics.points }, others, state.selected.item);
+  charts.update({ timeUnit: s.timeUnit, points: metrics.points }, others, state.selected.item,
+    { mode: state.settings.areaChart, useMm2: !!state.settings.pixelSizeUm });
 }
 
 // ---- manual correction -----------------------------------------------------
@@ -744,6 +757,12 @@ function bindEvents() {
   $('timeSlider').addEventListener('input', (e) => select(state.selected.series, Number(e.target.value)));
   $('btnPrev').addEventListener('click', () => step(-1));
   $('btnNext').addEventListener('click', () => step(1));
+  $('selAreaChart').addEventListener('change', (e) => {
+    state.settings.areaChart = e.target.value;
+    saveSettings();
+    renderCurrentNumbers();
+    track('area_chart_mode', { mode: e.target.value });
+  });
   $('chkAllSeries').addEventListener('change', (e) => { renderCurrentNumbers(); track('chart_all_series', { on: e.target.checked }); });
 
   // Exports
@@ -854,6 +873,8 @@ function init() {
   viewer.setBrush(Number($('brushSize').value));
   charts = new Charts($('chartClosure'), $('chartArea'), (index) => select(state.selected.series, index));
   $('chkAllSeries').checked = false;
+  if (!['t0', 'abs', 'well'].includes(state.settings.areaChart)) state.settings.areaChart = 't0';
+  $('selAreaChart').value = state.settings.areaChart;
   bindEvents();
   bindState();
   renderParams();

@@ -134,6 +134,33 @@ await step('classical analysis of the batch', async () => {
   assert.match(await page.$eval('#mWoundPct', (el) => el.textContent), /^\d+\.\d%$/);
 });
 
+await step('wound area at time 0 and its drop over time are shown', async () => {
+  // B1, first image: nothing has dropped yet
+  assert.match(await page.$eval('#mAreaT0', (el) => el.textContent), /^[\d,]+ px$/);
+  assert.equal(await page.$eval('#mAreaDrop', (el) => el.textContent), '0.0%');
+  const t0 = await page.$eval('#mAreaT0', (el) => el.textContent);
+  // last image of B1: same time-0 area, most of it gone
+  await page.evaluate(() => window.__wq.select(0, 3));
+  await page.waitForFunction(() => document.getElementById('mAreaDrop').textContent !== '0.0%');
+  assert.equal(await page.$eval('#mAreaT0', (el) => el.textContent), t0);
+  const drop = parseFloat(await page.$eval('#mAreaDrop', (el) => el.textContent));
+  assert.ok(drop > 60 && drop < 90, `B1 area drop ${drop}`);
+  const px = (s) => Number(s.replace(/[^\d-]/g, ''));
+  const absolute = px(await page.$eval('#mAreaDropAbs', (el) => el.textContent));
+  const now = px(await page.$eval('#mWoundArea', (el) => el.textContent));
+  assert.equal(absolute, px(t0) - now, 'drop = time-0 area − current area');
+  // with a pixel size the same numbers appear in mm²
+  await page.$eval('#inPixelSize', (el) => { el.value = '2.825'; el.dispatchEvent(new Event('change', { bubbles: true })); });
+  await page.waitForFunction(() => / mm²$/.test(document.getElementById('mAreaT0').textContent));
+  const mm0 = parseFloat(await page.$eval('#mAreaT0', (el) => el.textContent));
+  assert.ok(Math.abs(mm0 - px(t0) * 2.825 * 2.825 / 1e6) < 0.006, `time-0 area ${mm0} mm²`);
+  // chart units can be switched and are remembered
+  for (const mode of ['abs', 'well', 't0']) await page.select('#selAreaChart', mode);
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('woundquant.settings.v2')).areaChart), 't0');
+  await page.$eval('#inPixelSize', (el) => { el.value = ''; el.dispatchEvent(new Event('change', { bubbles: true })); });
+  await page.evaluate(() => window.__wq.select(0, 0));
+});
+
 await step('a series whose wound grows is marked as unreliable', async () => {
   await page.click('#seriesList li:nth-child(2)');
   await page.waitForFunction(() => !document.getElementById('seriesWarning').hidden);
@@ -203,10 +230,12 @@ await step('exports: results CSV, summary CSV, training ZIP', async () => {
   const lines = csv.replace(/^\ufeff/, '').trim().split('\r\n');
   assert.equal(lines.length, 13);
   assert.ok(lines[0].startsWith('series,plate,well,site,file,time,'));
+  for (const c of ['wound_area_t0_px', 'area_reduction_px', 'area_reduction_pct']) assert.ok(lines[0].split(',').includes(c), 'missing column ' + c);
   assert.ok(lines[1].includes(',manual,'), 'the corrected image is marked manual');
   await page.click('#btnSummaryCsv');
   const summary = fs.readFileSync(await waitForDownload(/^woundquant_summary_.*\.csv$/), 'utf8');
   assert.equal(summary.trim().split('\r\n').length, 4);
+  assert.ok(summary.split('\r\n')[0].includes('wound_area_t0_px') && summary.split('\r\n')[0].includes('final_area_reduction_pct'));
   await page.click('#btnTraining');
   await page.waitForSelector('#dlgTraining[open]');
   assert.match(await page.$eval('#trainManualLabel', (el) => el.textContent), /1/);

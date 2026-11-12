@@ -141,6 +141,27 @@ test('series metrics: closure, rate, T50 and the wound-grew flag', () => {
     assert.ok(Math.abs(rows[i].t0RegionClosurePct - expected) < 6, `t0 region t${i}: ${rows[i].t0RegionClosurePct}`);
   });
   assert.ok(rows[1].ratePctPerH > 0);
+
+  // wound area at time 0 and its drop over time
+  const a0 = rows[0].woundAreaPx;
+  assert.ok(Math.abs(a0 / (Math.PI * 180 * 180) - 1) < 0.08, `time-0 area ${a0}`);
+  rows.forEach((row, i) => {
+    assert.equal(row.woundAreaT0Px, a0, 'every row carries the time-0 area');
+    assert.equal(row.areaReductionPx, a0 - row.woundAreaPx);
+    assert.ok(Math.abs(row.areaReductionPct - 100 * (1 - row.woundAreaPx / a0)) < 1e-9);
+    assert.ok(Math.abs(row.areaReductionPct - 100 * (1 - (radii[i] * radii[i]) / (180 * 180))) < 6, `drop t${i}: ${row.areaReductionPct}`);
+    // pixel size 1 µm → mm² = px · 1e-6
+    assert.ok(Math.abs(row.woundAreaT0Mm2 - a0 * 1e-6) < 1e-12);
+    assert.ok(Math.abs(row.areaReductionMm2 - row.areaReductionPx * 1e-6) < 1e-12);
+  });
+  assert.equal(rows[0].areaReductionPct, 0);
+  assert.ok(rows[3].areaReductionPct > rows[2].areaReductionPct && rows[2].areaReductionPct > rows[1].areaReductionPct);
+  assert.equal(summary.baselineWoundAreaPx, a0);
+  assert.equal(summary.finalWoundAreaPx, rows[3].woundAreaPx);
+  assert.equal(summary.finalAreaReductionPx, a0 - rows[3].woundAreaPx);
+  assert.equal(summary.finalAreaReductionPct, rows[3].areaReductionPct);
+  assert.ok(Math.abs(summary.finalAreaReductionMm2 - (a0 - rows[3].woundAreaPx) * 1e-6) < 1e-12);
+
   assert.equal(summary.n, 4);
   assert.equal(summary.analysed, 4);
   assert.ok(summary.finalClosurePct > 90);
@@ -151,12 +172,25 @@ test('series metrics: closure, rate, T50 and the wound-grew flag', () => {
   const grown = seriesMetrics(points.slice().reverse().map((p, i) => ({ ...p, time: hours[i], hours: hours[i] })));
   assert.ok(grown.summary.finalClosurePct < -100);
   assert.ok(grown.points[1].qc.includes('wound_grew'));
+  assert.ok(grown.points[3].areaReductionPct < -100, 'a growing wound gives a negative drop');
+  assert.ok(grown.points[3].areaReductionPx < 0);
+  assert.equal(grown.points[0].woundAreaT0Mm2, null, 'no pixel size → no mm²');
+  assert.equal(grown.points[3].areaReductionMm2, null);
   assert.equal(grown.summary.t50Hours, null);
 
   // missing results are carried through as gaps
   const gaps = seriesMetrics([{ time: 0, hours: 0, result: null }, points[1], points[2]]);
   assert.equal(gaps.points[0].analysed, false);
   assert.equal(gaps.points[1].closurePct, 0);
+  assert.equal(gaps.points[2].woundAreaT0Px, gaps.points[1].woundAreaPx, 'time 0 = first analysed image');
+
+  // no wound at time 0 → the drop is undefined, not a division by zero
+  const none = syntheticWell({ size: 800, wellRadius: 370, woundRadius: 0 });
+  const empty = seriesMetrics([{ time: 0, hours: 0, result: analyzeClassical(none.data, none.width, none.height).result }, points[1]]);
+  assert.equal(empty.points[1].woundAreaT0Px, 0);
+  assert.equal(empty.points[1].areaReductionPct, null);
+  assert.equal(empty.points[1].areaReductionPx, null);
+  assert.equal(empty.summary.finalAreaReductionPct, null);
   assert.equal(gaps.summary.analysed, 2);
 
   assert.equal(slope([0, 1, 2], [1, 3, 5]), 2);
@@ -176,4 +210,9 @@ test('csv: header, quoting, skipped rows', () => {
   assert.ok(lines[1].includes('"plate ""A"", run 2"'));
   assert.ok(lines[1].includes('"img, 0.jpg"'));
   assert.ok(lines[1].endsWith(',auto,classical,'));
+  const col = (name) => lines[1].split(',').at(CSV_COLUMNS.indexOf(name) - CSV_COLUMNS.length); // from the end: no quoted commas there
+  assert.equal(Number(col('wound_area_t0_px')), m.points[0].woundAreaPx);
+  assert.equal(Number(col('area_reduction_px')), 0);
+  assert.equal(Number(col('area_reduction_pct')), 0);
+  assert.ok(Math.abs(Number(col('wound_area_t0_mm2')) - m.points[0].woundAreaPx * 6.25e-6) < 1e-3);
 });
